@@ -18,7 +18,7 @@ The amount of existing time-series classification tasks increases every day, and
 - As soon as a task is finished, push the code to the repository with self-explanatory details in the commit. Please do **not** push work in progress to the repository.
 - Do **not** push data files (i.e. dataset, embeddings, models etc.) to the repository as it is only intended for source files. When you want to share data files, use this [Cloud directory](https://cloud.dfki.de/owncloud/index.php/s/N6sAe7DJRPPksP6)
 - Document the code along with your implementation because it becomes very difficult to do it at the end.
-- Create a **"src"** folder for the code, **"images"** folder for plots, and a **"statistics"** folder for evaluation files. This structure will help you to organize the files within the repository.
+- Use / create **"src"** folder for the code, **"images"** folder for plots, and a **"statistics"** folder for evaluation files. This structure will help you to organize the files within the repository.
 - Note down your findings in this readme. Use the sections below that are created for each Milestone. Only summarize the finding. For deatails you can create individual files and link them (e.g. M1_readme.md).
 
 **Dataset sources:**  
