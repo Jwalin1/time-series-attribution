@@ -3,7 +3,7 @@
 **Type:**
 Student Project SS21
 
-**Topci:**
+**Topic:**
 Understanding the applicability of attribution methods on time-series.
 
 **Description:**  
