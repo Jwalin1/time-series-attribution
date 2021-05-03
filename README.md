@@ -28,7 +28,7 @@ Snythetic Anomaly Detection dataset: www.bit.ly/2UNk0Lo
 
 
 **Suggested datasets:**  
-- Character Trajectories: Back-projection is very interpretable. (Main focus)
+- Character Trajectories: Back-projection is very interpretable.
 - Synthetic Anomaly Dectection: Classification task is interpretable.
 - FordA: Wide spread uni-variate datset.
 - Electric Devices: Provides huge discrepancy between the classes.
