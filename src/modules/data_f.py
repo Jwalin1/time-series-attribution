@@ -34,29 +34,54 @@ def extract_zip(path_to_zip_file, directory_to_extract_to):
   else:
     print("zip already extracted")
 
+def breakData(data):
+  inputs = []
+  labels = []
+  for sample in data:
+
+    if isinstance(sample[0], np.ndarray):   # check if input has more than 1 channel
+      channels = [list(channel) for channel in sample[0]]  
+      inputs.append(channels)  
+    else:
+      inputs.append([list(sample)[:-1]])
+
+    labels.append(sample[-1])
+
+  inputs = np.nan_to_num(inputs)
+  try:  labels = np.array(labels, dtype=float)
+  except Exception: print("non numeric labels")
+
+  return inputs, labels
+
+def download_timeSeries(dataset):
+  fsource = "http://www.timeseriesclassification.com/Downloads/" + dataset + ".zip"
+  fname = dataset + ".zip"
+  download_file(url = fsource, saveAs = fname)
+  extract_zip(fname, dataset)
+
+  data, meta = arff.loadarff("%s/%s_TRAIN.arff" % (dataset,dataset))
+  train_inputs, train_labels = breakData(data)
+  data, meta = arff.loadarff("%s/%s_TEST.arff" % (dataset,dataset))
+  test_inputs, test_labels = breakData(data)
+
+  # adjust labels to begin from 0
+  oldLabels = list(np.unique(train_labels))
+  newLabels = np.arange(len(oldLabels))
+  # elementwise comparison fails when using np.where on byte'string' data so used list instead
+  train_labels = np.array([ newLabels[oldLabels.index(label)] for label in train_labels])
+  test_labels = np.array([ newLabels[oldLabels.index(label)] for label in test_labels])
+
+  return train_inputs, train_labels, test_inputs, test_labels
+
 
 def getRead_data(dataset):
-
+  curr_dir = os.getcwd()
+  if not os.path.exists("datasets"):
+    os.mkdir("datasets"); os.chdir("datasets")    # create a dir to store datasets
+  else:
+    os.chdir("datasets")
   # get data
-  if dataset == "CharacterTrajectories":
-    fsource = "http://www.timeseriesclassification.com/Downloads/CharacterTrajectories.zip"
-    fname = fsource[fsource.rindex('/')+1:] # fname = "CharacterTrajectories.zip"
-    download_file(url = fsource, saveAs = fname)
-    extract_zip(fname, "CharacterTrajectories")
-
-    data, meta = arff.loadarff(open("CharacterTrajectories/CharacterTrajectories_TRAIN.arff"))
-    train_inputs, train_labels = zip(*data)
-    data, meta = arff.loadarff(open("CharacterTrajectories/CharacterTrajectories_TEST.arff"))
-    test_inputs, test_labels = zip(*data)
-
-    # convert to np array
-    train_inputs = np.array([ [ np.array(list(channel), dtype=float) for channel in input ]  for input in train_inputs])
-    test_inputs = np.array([ [ np.array(list(channel), dtype=float) for channel in input ]  for input in test_inputs])
-    train_inputs, train_labels = np.nan_to_num(train_inputs), np.array(train_labels, dtype=int)
-    test_inputs, test_labels = np.nan_to_num(test_inputs), np.array(test_labels, dtype=int)
-    train_labels -= 1; test_labels -= 1 # change labels from [1,20] to [0,19]
-    
-  elif dataset == "SyntheticAnomaly":
+  if dataset == "SyntheticAnomaly":
     download_file(url = "https://drive.google.com/u/0/uc?id=1CdYxeX8g9wxzSnz6R51ELmJJuuZ3xlqa&export=download",
                           saveAs = "anomaly_dataset.pickle")
 
@@ -66,40 +91,14 @@ def getRead_data(dataset):
 
     # read data
     train_inputs, train_labels, test_inputs, test_labels = data
-
     train_inputs = np.transpose(train_inputs, (0,2,1))
     test_inputs = np.transpose(test_inputs, (0,2,1))
-    # sample_len = 50;  classes = ["normal","anomaly"]
 
-  elif dataset == "FordA":
-    fsource = "http://www.timeseriesclassification.com/Downloads/FordA.zip"
-    fname = fsource[fsource.rindex('/')+1:] # fname = "FordA.zip"
-    download_file(url = fsource, saveAs = fname)
-    extract_zip(fname, "FordA")
+  else:
+    train_inputs, train_labels, test_inputs, test_labels = download_timeSeries(dataset)
 
-    data, meta = arff.loadarff(open("FordA/FordA_TRAIN.arff"))
-    train_inputs, train_labels = zip(*[(list(sample)[:-1],list(sample)[-1]) for sample in data])
-    data, meta = arff.loadarff(open("FordA/FordA_TEST.arff"))
-    test_inputs, test_labels = zip(*[(list(sample)[:-1],list(sample)[-1]) for sample in data])
-    train_inputs, train_labels = np.expand_dims(np.array(train_inputs),1), np.array(train_labels, dtype="int")
-    test_inputs, test_labels = np.expand_dims(np.array(test_inputs),1), np.array(test_labels, dtype="int")
-    train_labels, test_labels = (train_labels+1)/2, (test_labels+1)/2 # change labels from [-1,1] to [0,1]
-
-  elif dataset == "ElectricDevices":
-    fsource = "http://www.timeseriesclassification.com/Downloads/ElectricDevices.zip"
-    fname = fsource[fsource.rindex('/')+1:] # fname = "ElectricDevices.zip"
-    download_file(url = fsource, saveAs = fname)
-    extract_zip(fname, "ElectricDevices") 
-
-    data, meta = arff.loadarff(open("ElectricDevices/ElectricDevices_TRAIN.arff"))
-    train_inputs, train_labels = zip(*[(list(sample)[:-1],list(sample)[-1]) for sample in data])
-    data, meta = arff.loadarff(open("ElectricDevices/ElectricDevices_TEST.arff"))
-    test_inputs, test_labels = zip(*[(list(sample)[:-1],list(sample)[-1]) for sample in data])
-    train_inputs, train_labels = np.expand_dims(np.array(train_inputs),1), np.array(train_labels, dtype="int")
-    test_inputs, test_labels = np.expand_dims(np.array(test_inputs),1), np.array(test_labels, dtype="int")
-    train_labels -= 1; test_labels -= 1 # change labels from [1,7] to [0,6]
-
-  return train_inputs, train_labels, test_inputs, test_labels      
+  os.chdir(curr_dir)
+  return train_inputs, train_labels, test_inputs, test_labels
 
 # create dataset and dataloaders
 class mydataset(Dataset):
