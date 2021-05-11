@@ -91,7 +91,7 @@ def train_model(model,criterion,optimizer,scheduler,dataloaders,epochs,check_eve
       print("epoch: %d" % (epoch + 1), end="  | ")
       for phase in phases:
         print("%s loss: %.4f" % (phase, avg_loss[phase]), end=", ")
-      if check_every > 1:
+      if check_every > 1:   # else avg loss would be same as loss so no need to print
         print(" | ", end='')
         for phase in phases:        
           print("avg %s loss: %.4f" % (phase, np.mean(avg_losses[phase][epoch+1-check_every:epoch+1])), end=", ")
@@ -99,7 +99,8 @@ def train_model(model,criterion,optimizer,scheduler,dataloaders,epochs,check_eve
         movAvg_new = np.mean(avg_losses["val"][epoch+1-check_every:epoch+1])
 
       if (valExists) and earlyStopping:
-        if movAvg_old < movAvg_new:   break
+        if movAvg_old < movAvg_new: 
+          print("\nStopping Early");  break
         else:   movAvg_old = movAvg_new
 
 
