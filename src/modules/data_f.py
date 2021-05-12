@@ -7,11 +7,17 @@ from scipy.io import loadmat, arff
 import pickle
 import zipfile
 
+# to track progress
+from tqdm.notebook import tqdm
+
 # to create dataset and dataloaders
 from torch.utils.data import DataLoader, Dataset
 
-# for splitting data
+# for splitting, standardizing and normalizing
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+
+
 np.random.seed(0)
 
 
@@ -37,7 +43,7 @@ def extract_zip(path_to_zip_file, directory_to_extract_to):
 def breakData(data):
   inputs = []
   labels = []
-  for sample in data:
+  for sample in tqdm(data, leave=False):
 
     if isinstance(sample[0], np.ndarray):   # check if input has more than 1 channel
       channels = [list(channel) for channel in sample[0]]  
@@ -97,8 +103,27 @@ def getRead_data(dataset):
   else:
     train_inputs, train_labels, test_inputs, test_labels = download_timeSeries(dataset)
 
+    if dataset == "UWaveGestureLibraryAll":
+    # change shape from n,1,945 to n,3,315 as it is originally supposed to have 3 channels which can also be seen by plotting
+      train_inputs, test_inputs = train_inputs.reshape(-1,3,315), test_inputs.reshape(-1,3,315)
+
   os.chdir(curr_dir)
+  train_inputs, test_inputs = standard_normal(train_inputs), standard_normal(test_inputs)
   return train_inputs, train_labels, test_inputs, test_labels
+
+
+def standard_normal(inputs):
+  new_inputs = []
+  for sample in tqdm(inputs, leave=False):
+    channels = []
+    for channel in sample:
+      channel = channel.reshape(-1,1)
+      channel = StandardScaler().fit_transform(channel)
+      channel = MinMaxScaler(feature_range=(-1,1)).fit_transform(channel)
+      channels.append(channel)
+    new_inputs.append(channels)
+  return np.squeeze(new_inputs) 
+
 
 # create dataset and dataloaders
 class mydataset(Dataset):
