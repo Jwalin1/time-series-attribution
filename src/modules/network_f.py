@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -135,3 +136,17 @@ def evaluate(model, loader):
       outPred.extend(outPredBatch.cpu())
 
   print(classification_report(outTrue, outPred, digits=4))  
+
+
+
+def save_state_dict(model, path):
+  curr_dir = os.getcwd()
+  if not os.path.exists("models"):
+    os.mkdir("models");   # create a dir to store models
+
+  path = "models/" + path + ".pth"
+  torch.save(model.state_dict(), path)
+
+def load_state_dict(model, path):
+  path = "models/" + path + ".pth"
+  model.load_state_dict(torch.load(path, map_location=device))
