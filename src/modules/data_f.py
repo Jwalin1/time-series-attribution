@@ -113,6 +113,7 @@ def getRead_data(dataset):
 
 
 def standard_normal(inputs):
+  original_shape = inputs.shape
   new_inputs = []
   for sample in tqdm(inputs, leave=False):
     channels = []
@@ -122,7 +123,7 @@ def standard_normal(inputs):
       channel = MinMaxScaler(feature_range=(-1,1)).fit_transform(channel)
       channels.append(channel)
     new_inputs.append(channels)
-  return np.squeeze(new_inputs) 
+  return np.reshape(new_inputs, original_shape) 
 
 
 # create dataset and dataloaders
