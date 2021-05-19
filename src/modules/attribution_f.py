@@ -27,8 +27,8 @@ def applyMethod(method, model, samples):
   maps = []
   for sample in samples:
     map1 = globals()[method](model, sample)
-    maps.append(map1)
-  return maps  
+    maps.append(map1.numpy())
+  return maps
 
 def salMap(model, sample):
   sample = compute_grad(model, sample)
