@@ -108,22 +108,30 @@ def getRead_data(dataset):
       train_inputs, test_inputs = train_inputs.reshape(-1,3,315), test_inputs.reshape(-1,3,315)
 
   os.chdir(curr_dir)
-  train_inputs, test_inputs = standard_normal(train_inputs), standard_normal(test_inputs)
+  train_inputs, scalers = standard_normal(train_inputs)
+  test_inputs, _ = standard_normal(test_inputs, scalers)
   return train_inputs, train_labels, test_inputs, test_labels
 
 
-def standard_normal(inputs):
-  original_shape = inputs.shape
-  new_inputs = []
-  for sample in tqdm(inputs, leave=False):
-    channels = []
-    for channel in sample:
-      channel = channel.reshape(-1,1)
-      channel = StandardScaler().fit_transform(channel)
-      channel = MinMaxScaler(feature_range=(-1,1)).fit_transform(channel)
-      channels.append(channel)
-    new_inputs.append(channels)
-  return np.reshape(new_inputs, original_shape) 
+def standard_normal(inputs, scalers=None, standardize=True, normalize=False):
+  n_samples, n_channels, sample_lens = inputs.shape
+  if scalers is None:
+    scalers = {"standard" : [], "minmax" : []}
+  for c in range(n_channels):
+
+    if standardize:
+      if c == len(scalers["standard"]):
+        scaler = StandardScaler().fit(inputs[:,c,:])
+        scalers["standard"].append(scaler)
+      inputs[:,c,:] = scalers["standard"][c].transform(inputs[:,c,:])   # apply standardization before normalization
+    
+    if normalize:
+      if c == len(scalers["minmax"]):
+        scaler = MinMaxScaler(feature_range=(-1,1)).fit(inputs[:,c,:])
+        scalers["minmax"].append(scaler)    
+      inputs[:,c,:] = scalers["minmax"][c].transform(inputs[:,c,:])
+
+  return inputs, scalers
 
 
 # create dataset and dataloaders
@@ -155,3 +163,12 @@ def createLoaders(train_inputs, train_labels, test_inputs, test_labels, batch_si
 
   dataloaders = {"train":train_loader, "val":val_loader, "test":test_loader}
   return dataloaders
+
+
+# function to select 'n' inputs for each label
+def selectInputs(inputs, labels, n):
+  classes = np.unique(labels)
+  selectedInputs = []
+  for claSS in classes:
+    selectedInputs.extend(inputs[np.where(labels==claSS)][:n])
+  return selectedInputs
