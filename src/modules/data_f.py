@@ -172,3 +172,16 @@ def selectInputs(inputs, labels, n):
   for claSS in classes:
     selectedInputs.extend(inputs[np.where(labels==claSS)][:n])
   return selectedInputs
+
+# functions to save and load the output of attribution methods
+def saveMaps(maps, method, dataset):
+  if not os.path.exists("results"):
+    os.mkdir("results");   # create a dir to store models
+  outfile = "results/" + dataset + '_' + method
+  np.save(outfile, maps)
+  return
+
+def loadMaps(method, dataset):
+  file = "results/" + dataset + '_' + method + ".npy"
+  maps = np.load(file)
+  return maps
