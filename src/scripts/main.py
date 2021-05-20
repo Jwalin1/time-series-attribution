@@ -34,8 +34,8 @@ def main(args):
   # x = train_inputs[np.where(train_labels==0)]
   # map1 = attribution_f.salMap(model,x[2])
   # attribution_f.visualizeMaps([x[2]], [map1])
-  #samplesPerClass = 2;  method = "salMap"
-  selectedInputs = data_f.selectInputs(train_inputs, train_labels, args.samplesPerClass)
+  #n_samples = 2;  method = "salMap"
+  selectedInputs = data_f.selectInputs(train_inputs, train_labels, args.n_samples)
   maps = attribution_f.applyMethod(args.method, model, selectedInputs)
   data_f.saveMaps(maps, args.method, args.dataset)
   maps = data_f.loadMaps(args.method, args.dataset)
@@ -49,7 +49,7 @@ if __name__ == "__main__":
   parser.add_argument("--epochs", type=int)
   parser.add_argument("--save", type=str)
   parser.add_argument("--load", type=str)
-  parser.add_argument("--samplesPerClass", type=int)
+  parser.add_argument("--n_samples", type=int)
   parser.add_argument("--method", type=str, help="attribution method to be applied")
 
   args = parser.parse_args()
