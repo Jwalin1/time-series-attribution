@@ -165,12 +165,17 @@ def createLoaders(train_inputs, train_labels, test_inputs, test_labels, batch_si
   return dataloaders
 
 
-# function to select 'n' inputs for each label
+# function to select 'n' inputs distributed over the classes
 def selectInputs(inputs, labels, n):
+  tota_samples = (len(inputs))
   classes = np.unique(labels)
   selectedInputs = []
   for claSS in classes:
-    selectedInputs.extend(inputs[np.where(labels==claSS)][:n])
+    class_samples = inputs[np.where(labels==claSS)]
+    class_percent = len(class_samples) / tota_samples
+    n_samples = int(n*class_percent)
+    selectedInputs.extend(class_samples[:n_samples])
+    print("class %d : %d samples" % (claSS, n_samples))
   return selectedInputs
 
 # functions to save and load the output of attribution methods
