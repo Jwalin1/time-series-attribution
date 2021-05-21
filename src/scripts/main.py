@@ -6,7 +6,7 @@ from modules import data_f, network_f, network_architectures, attribution_f
 
 # reload module
 import importlib
-importlib.reload(data_f)
+importlib.reload(attribution_f)
 
 
 
@@ -29,12 +29,12 @@ def main(args):
     model.load_state_dict(best_params)
     if args.save is not None:
       network_f.save_state_dict(model, args.dataset)
-  #network_f.evaluate(model, dataloaders["test"])
+  # network_f.evaluate(model, dataloaders["test"])
 
-  # x = train_inputs[np.where(train_labels==0)]
-  # map1 = attribution_f.salMap(model,x[2])
-  # attribution_f.visualizeMaps([x[2]], [map1])
-  #n_samples = 2;  method = "salMap"
+  # x = train_inputs[np.where(train_labels==1)]
+  # map1 = attribution_f.GradCAM(model,x[0])
+  # attribution_f.visualizeMaps([x[0]], [map1])
+
   selectedInputs = data_f.selectInputs(train_inputs, train_labels, args.n_samples)
   maps = attribution_f.applyMethod(args.method, model, selectedInputs)
   data_f.saveMaps(maps, args.method, args.dataset)
