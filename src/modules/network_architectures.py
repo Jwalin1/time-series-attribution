@@ -32,29 +32,10 @@ class AlexNet(nn.Module):
       nn.ReLU(inplace=True),
       nn.Linear(4096, num_classes),
     )
-    # placeholder for the gradients
-    self.gradients = None
 
   def forward(self, x: torch.Tensor) -> torch.Tensor:
     x = self.features(x)
-
-    # register the hook
-    if x.requires_grad:
-      h = x.register_hook(self.activations_hook)
-
     x = self.avgpool(x)
     x = torch.flatten(x, 1)
     x = self.classifier(x)
     return x
-
-  # hook for the gradients of the activations
-  def activations_hook(self, grad):
-    self.gradients = grad
-
-  # method for the gradient extraction
-  def get_activations_gradient(self):
-    return self.gradients
-  
-  # method for the activation exctraction
-  def get_activations(self, x):
-    return self.features(x)
