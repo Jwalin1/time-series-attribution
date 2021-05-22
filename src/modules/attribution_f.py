@@ -23,7 +23,7 @@ def applyMethod(method, model, samples):
     else:
       interpreter = globals()[method](model)
       
-    attribution = interpreter.attribute(sample, target)
+    attribution = interpreter.attribute(sample, target=target)
     if method in ["LayerGradCam", "GuidedGradCam"]:
       attribution = LayerAttribution.interpolate(attribution, sample.shape[2])
     attribution = attribution.squeeze(0).detach().numpy()
