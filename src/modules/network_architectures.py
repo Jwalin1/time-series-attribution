@@ -19,7 +19,7 @@ class AlexNet(nn.Module):
       nn.Conv1d(384, 256, kernel_size=3, padding=1),  # same
       nn.ReLU(inplace=True),
       nn.Conv1d(256, 256, kernel_size=3, padding=1),  # same
-      nn.ReLU(inplace=True),
+      nn.ReLU(inplace=False),   # inplace operation would prevent backward hook
       nn.MaxPool1d(kernel_size=2, stride=2),    # 2 -> 1
     )
     self.avgpool = nn.AdaptiveAvgPool1d(6)
