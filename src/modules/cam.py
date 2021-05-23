@@ -58,7 +58,7 @@ class CAM(object):
             prob, idx = torch.max(prob, dim=1)
             idx = idx.item()
             prob = prob.item()
-            print("predicted class ids {}\t probability {}".format(idx, prob))
+            # print("predicted class ids {}\t probability {}".format(idx, prob))
 
         # cam can be calculated from the weights of linear layer and activations
         weight_fc = list(
@@ -123,7 +123,7 @@ class GradCAM(CAM):
             prob, idx = torch.max(prob, dim=1)
             idx = idx.item()
             prob = prob.item()
-            print("predicted class ids {}\t probability {}".format(idx, prob))
+            # print("predicted class ids {}\t probability {}".format(idx, prob))
 
         # caluculate cam of the predicted class
         cam = self.getGradCAM(self.values, score, idx)
@@ -190,7 +190,7 @@ class GradCAMpp(CAM):
             prob, idx = torch.max(prob, dim=1)
             idx = idx.item()
             prob = prob.item()
-            print("predicted class ids {}\t probability {}".format(idx, prob))
+            # print("predicted class ids {}\t probability {}".format(idx, prob))
 
         # caluculate cam of the predicted class
         cam = self.getGradCAMpp(self.values, score, idx)
@@ -321,7 +321,7 @@ class SmoothGradCAMpp(CAM):
         idx = mode(indices)
         prob = mean(probs)
 
-        print("predicted class ids {}\t probability {}".format(idx, prob))
+        # print("predicted class ids {}\t probability {}".format(idx, prob))
 
         return total_cams.data, idx
 
@@ -361,7 +361,7 @@ class ScoreCAM(CAM):
             if idx is None:
                 p, idx = torch.max(prob, dim=1)
                 idx = idx.item()
-                print("predicted class ids {}\t probability {}".format(idx, p))
+                # print("predicted class ids {}\t probability {}".format(idx, p))
 
             # # calculate the derivate of probabilities, not that of scores
             # prob[0, idx].backward(retain_graph=True)
