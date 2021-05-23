@@ -59,6 +59,7 @@ def breakData(data):
 
   return inputs, labels
 
+# http://www.timeseriesclassification.com/dataset.php
 def download_timeSeries(dataset):
   fsource = "http://www.timeseriesclassification.com/Downloads/" + dataset + ".zip"
   fname = dataset + ".zip"
