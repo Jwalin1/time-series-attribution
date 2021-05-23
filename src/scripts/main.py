@@ -32,8 +32,8 @@ def main(args):
   # network_f.evaluate(model, dataloaders["test"])
 
   # x = train_inputs[np.where(train_labels==1)]
-  # map1 = attribution_f.GradCAM(model,x[0])
-  # attribution_f.visualizeMaps([x[0]], [map1])
+  # map1 = attribution_f.applyMethod(args.method, model, [x[0]])
+  # attribution_f.visualizeMaps([x[0]], map1)
 
   selectedInputs = data_f.selectInputs(train_inputs, train_labels, args.n_samples)
   maps = attribution_f.applyMethod(args.method, model, selectedInputs)
