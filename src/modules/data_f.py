@@ -2,10 +2,10 @@ import os
 import numpy as np
 
 # to read data
-import requests
-from scipy.io import loadmat, arff
 import pickle
 import zipfile
+import requests
+from scipy.io import arff
 
 # to track progress
 from tqdm.notebook import tqdm
@@ -111,8 +111,19 @@ def getRead_data(dataset):
   os.chdir(curr_dir)
   train_inputs, scalers = standard_normal(train_inputs)
   test_inputs, _ = standard_normal(test_inputs, scalers)
+  train_inputs, test_inputs = interpolate(train_inputs,500), interpolate(test_inputs,500)
   return train_inputs, train_labels, test_inputs, test_labels
 
+
+
+def interpolate(inputs, new_size):
+  n_samples, n_channels, sample_lens = inputs.shape
+  new_inputs = np.zeros((n_samples,n_channels,new_size))
+  for sample in tqdm(range(n_samples)):
+    for channel in range(n_channels):
+      vals = inputs[sample,channel,:]
+      new_inputs[sample,channel,:] = np.interp(np.linspace(0,len(vals)-1,new_size),range(len(vals)), vals)
+  return new_inputs
 
 def standard_normal(inputs, scalers=None, standardize=True, normalize=False):
   n_samples, n_channels, sample_lens = inputs.shape
@@ -174,7 +185,7 @@ def selectInputs(inputs, labels, n):
   for claSS in classes:
     class_samples = inputs[np.where(labels==claSS)]
     class_percent = len(class_samples) / tota_samples
-    n_samples = int(n*class_percent)
+    n_samples = round(n*class_percent)
     selectedInputs.extend(class_samples[:n_samples])
     print("class %d : %d samples" % (claSS, n_samples))
   return selectedInputs
