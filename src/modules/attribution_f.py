@@ -9,8 +9,7 @@ from tqdm.notebook import tqdm
 
 # for attribution
 # https://captum.ai/api/attribution.html
-from captum.attr import Saliency, IntegratedGradients, InputXGradient, GuidedBackprop, GuidedGradCam, Lime
-from captum.attr import LayerGradCam, LayerAttribution
+from captum.attr import Saliency, IntegratedGradients, InputXGradient, GuidedBackprop, LayerGradCam, GuidedGradCam, Lime
 
 # https://github.com/yiskw713/ScoreCAM
 from modules.cam import GradCAMpp, SmoothGradCAMpp, ScoreCAM
@@ -23,7 +22,7 @@ def applyMethod(method, model, samples):
   model.eval()
   maps = []
   for sample in tqdm(samples):
-    
+
     sample = torch.from_numpy(sample).to(device).unsqueeze(0)
     sample = sample.float().requires_grad_(True)
     target = model(sample).argmax(dim=1)[0]
@@ -41,10 +40,7 @@ def applyMethod(method, model, samples):
     else:  
       attribution = interpreter.attribute(sample, target=target)
 
-    if method in ["LayerGradCam", "GuidedGradCam"]:
-      attribution = LayerAttribution.interpolate(attribution, sample.shape[2])
-
-    attribution = attribution.squeeze(0).detach().numpy()
+    attribution = attribution.squeeze(0).detach().cpu().numpy()
     maps.append(attribution)
   return maps
 
