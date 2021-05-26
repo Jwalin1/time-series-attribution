@@ -119,7 +119,7 @@ def getRead_data(dataset):
 def interpolate(inputs, new_size):
   n_samples, n_channels, sample_lens = inputs.shape
   new_inputs = np.zeros((n_samples,n_channels,new_size))
-  for sample in tqdm(range(n_samples)):
+  for sample in tqdm(range(n_samples), leave=False):
     for channel in range(n_channels):
       vals = inputs[sample,channel,:]
       new_inputs[sample,channel,:] = np.interp(np.linspace(0,len(vals)-1,new_size),range(len(vals)), vals)
