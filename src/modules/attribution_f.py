@@ -42,7 +42,7 @@ def applyMethod(method, model, samples):
 
     attribution = attribution.squeeze(0).detach().cpu().numpy()
     maps.append(attribution)
-  return maps
+  return np.array(maps)
 
 def visualizeMaps(inputs, maps):
   for sample, map1 in zip(inputs,maps):
@@ -55,3 +55,28 @@ def visualizeMaps(inputs, maps):
     plt.tight_layout()
     plt.show()
     print()
+
+
+def replace(inputs, maps, n_percentile=90, imp="most", approach="replaceWithZero"):
+  n_samples, n_channels, sample_lens = inputs.shape
+  replaced_samples = []
+  for sample, map1 in zip(inputs,maps):
+    nth_percentile = np.percentile(map1,n_percentile)
+    if approach == "replaceWithZero":
+      replaceWith = 0
+      new_sample = np.where(map1 < nth_percentile, replaceWith, sample) if imp == "least" else np.where(map1 > nth_percentile, replaceWith, sample)
+    elif approach == "replaceWithMean":
+      replaceWith = np.array([np.mean(sample, axis=1),]*sample_lens).transpose()
+      new_sample = np.where(map1 < nth_percentile, replaceWith, sample) if imp == "least" else np.where(map1 > nth_percentile, replaceWith, sample)      
+    elif approach == "replaceWithInterp":
+      imp_pts = np.where(map1 < nth_percentile) if imp == "least" else np.where(map1 > nth_percentile)        
+      new_sample = np.zeros((n_channels,sample_lens))
+      for channel in range(n_channels):
+        indxs = imp_pts[1][imp_pts[0]==channel]
+        indxs = [i for i in range(sample_lens) if i not in indxs]
+        indxs = ([channel]*len(indxs) , indxs)
+        vals = sample[indxs]
+        new_sample[channel] = np.interp(np.linspace(0,len(vals)-1,sample_lens),range(len(vals)), vals)
+        
+    replaced_samples.append(new_sample)
+  return np.array(replaced_samples)
