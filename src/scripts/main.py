@@ -40,6 +40,7 @@ def main(args):
   data_f.saveMaps(maps, args.method, args.dataset)
   maps = data_f.loadMaps(args.method, args.dataset)
   attribution_f.visualizeMaps(selectedInputs, maps)
+  replacedInputs = attribution_f.replace(selectedInputs, maps, approach="replaceWithZero")
 
 
 
