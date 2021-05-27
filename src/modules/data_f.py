@@ -121,8 +121,8 @@ def interpolate(inputs, new_size):
   new_inputs = np.zeros((n_samples,n_channels,new_size))
   for sample in tqdm(range(n_samples), leave=False):
     for channel in range(n_channels):
-      vals = inputs[sample,channel,:]
-      new_inputs[sample,channel,:] = np.interp(np.linspace(0,len(vals)-1,new_size),range(len(vals)), vals)
+      vals = inputs[sample,channel]
+      new_inputs[sample,channel] = np.interp(np.linspace(0,len(vals)-1,new_size),range(len(vals)), vals)
   return new_inputs
 
 def standard_normal(inputs, scalers=None, standardize=True, normalize=False):
@@ -188,7 +188,7 @@ def selectInputs(inputs, labels, n):
     n_samples = round(n*class_percent)
     selectedInputs.extend(class_samples[:n_samples])
     print("class %d : %d samples" % (claSS, n_samples))
-  return selectedInputs
+  return np.array(selectedInputs)
 
 # functions to save and load the output of attribution methods
 def saveMaps(maps, method, dataset):
