@@ -69,14 +69,28 @@ def replace(inputs, maps, n_percentile=90, imp="most", approach="replaceWithZero
       replaceWith = np.array([np.mean(sample, axis=1),]*sample_lens).transpose()
       new_sample = np.where(map1 < nth_percentile, replaceWith, sample) if imp == "least" else np.where(map1 > nth_percentile, replaceWith, sample)      
     elif approach == "replaceWithInterp":
+      nth_percentile = np.percentile(map1,n_percentile)
       imp_pts = np.where(map1 < nth_percentile) if imp == "least" else np.where(map1 > nth_percentile)        
       new_sample = np.zeros((n_channels,sample_lens))
       for channel in range(n_channels):
         indxs = imp_pts[1][imp_pts[0]==channel]
-        indxs = [i for i in range(sample_lens) if i not in indxs]
-        indxs = ([channel]*len(indxs) , indxs)
-        vals = sample[indxs]
-        new_sample[channel] = np.interp(np.linspace(0,len(vals)-1,sample_lens),range(len(vals)), vals)
+        #indxs = [i for i in range(sample_lens) if i not in indxs]
+        vals = []
+        ch_vals = sample[channel]
+        i=0
+        while i in range(len(ch_vals)):
+          if i in indxs:
+            j=i+1
+            while j in indxs: j += 1
+            if i==0 and j==len(ch_vals)-1:  vals.extend([0]*(j-i))
+            elif i==0:  vals.extend([ch_vals[j]]*(j-i))
+            elif j==len(ch_vals)-1: vals.extend([ch_vals[i-1]]*(j-i))
+            else: vals.extend(np.linspace(ch_vals[i-1], ch_vals[j], (j-i)))
+            i = j
+          else:
+            vals.append(ch_vals[i])
+            i += 1  
+        new_sample[channel] = vals
         
     replaced_samples.append(new_sample)
   return np.array(replaced_samples)
