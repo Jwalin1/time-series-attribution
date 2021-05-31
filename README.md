@@ -40,7 +40,7 @@ Snythetic Anomaly Detection dataset: www.bit.ly/2UNk0Lo
 
 # Project plan
 
-## Milestone 1 : [Generic Expeiment Setup](https://git.opendfki.de/mercier/time-series-attribution/-/milestones/1)
+## Milestone 1 : [Generic Experiment Setup](https://git.opendfki.de/mercier/time-series-attribution/-/milestones/1)
 
 ## Milestone 2 : [Attribution Methods](https://git.opendfki.de/mercier/time-series-attribution/-/milestones/2)
 
