@@ -48,4 +48,6 @@ Snythetic Anomaly Detection dataset: www.bit.ly/2UNk0Lo
 
 ## Milestone 4 : [Impact of Randomization](https://git.opendfki.de/mercier/time-series-attribution/-/milestones/4)
 
-## Milestone 5 : [Deployment](https://git.opendfki.de/mercier/time-series-attribution/-/milestones/5)
+## Milestone 5 : [Visualization](https://git.opendfki.de/mercier/time-series-attribution/-/milestones/5)
+
+## Milestone 6 : [Deployment](https://git.opendfki.de/mercier/time-series-attribution/-/milestones/6)
