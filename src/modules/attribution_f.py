@@ -16,12 +16,50 @@ from modules.cam import GradCAMpp, SmoothGradCAMpp, ScoreCAM
 # https://github.com/yiskw713/RISE
 from modules.rise import RISE
 
+from modules.network_f import evaluate
+from modules.data_f import createLoader
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-def applyMethod(method, model, samples):
+def applyMethod(method, model, inputs):
+  captum_methods = ["Saliency, IntegratedGradients, InputXGradient, GuidedBackprop, LayerGradCam, GuidedGradCam, Lime"]
+  if method in captum_methods:
+    return applyMethodBatch(method, model, inputs)
+  else:
+    return applyMethodSample(method, model, inputs)
+
+def applyMethodBatch(method, model, inputs):
+  dummyLabels = [0]*len(inputs)
+  dataLoader = createLoader(inputs, dummyLabels)
+
   model.eval()
   maps = []
-  for sample in tqdm(samples):
+  for i, (inputBatch,_) in enumerate(tqdm(dataLoader, leave=False, desc="eval")):
+    inputBatch = inputBatch.to(device).float().requires_grad_(True)
+    targetBatch = model(inputBatch).argmax(dim=1)
+
+    if method in ["LayerGradCam", "GuidedGradCam"] + ["GradCAMpp", "SmoothGradCAMpp", "ScoreCAM"]:
+      interpreter = globals()[method](model, model.features[-3])
+    elif method == "RISE":
+      interpreter = globals()[method](model, input_size=(inputBatch.shape[2]))
+    else:
+      interpreter = globals()[method](model)
+
+    if method in ["GradCAMpp", "SmoothGradCAMpp", "ScoreCAM"]:
+      attribution, idx = interpreter(inputBatch)
+    elif method == "RISE":
+      attribution = interpreter(inputBatch)[targetBatch].view(1,1,-1)
+    else:
+      attribution = interpreter.attribute(inputBatch, target=targetBatch)
+
+    attribution = attribution.detach().cpu().numpy()
+    maps.extend(attribution)
+  return np.array(maps)  
+
+def applyMethodSample(method, model, samples):
+  model.eval()
+  maps = []
+  for sample in tqdm(samples, leave=False, desc=method):
 
     sample = torch.from_numpy(sample).to(device).unsqueeze(0)
     sample = sample.float().requires_grad_(True)
@@ -60,7 +98,7 @@ def visualizeMaps(inputs, maps):
 def replace(inputs, maps, n_percentile=90, imp="most", approach="replaceWithZero"):
   n_samples, n_channels, sample_lens = inputs.shape
   replaced_samples = []
-  for sample, map1 in zip(inputs,maps):
+  for sample, map1 in tqdm(zip(inputs,maps), total=len(inputs), leave=False, desc=approach):
     nth_percentile = np.percentile(map1,n_percentile)
     if approach == "replaceWithZero":
       replaceWith = 0
@@ -84,7 +122,7 @@ def replace(inputs, maps, n_percentile=90, imp="most", approach="replaceWithZero
             while j in indxs: j += 1
             if i==0 and j==len(ch_vals)-1:  vals.extend([0]*(j-i))
             elif i==0:                      vals.extend([ch_vals[j]]*(j-i))
-            elif j==len(ch_vals)-1:         vals.extend([ch_vals[i-1]]*(j-i))
+            elif j==len(ch_vals):         vals.extend([ch_vals[i-1]]*(j-i))
             else: vals.extend(np.linspace(ch_vals[i-1], ch_vals[j], (j-i)))
             i = j
           else:
@@ -102,3 +140,15 @@ def replace(inputs, maps, n_percentile=90, imp="most", approach="replaceWithZero
         
     replaced_samples.append(new_sample)
   return np.array(replaced_samples)
+
+
+def gridEval(model, inputs, labels, maps):
+  accs = []
+  dataLoader = createLoader(inputs, labels)
+  accs.append(evaluate(model, dataLoader, output_dict=True)["accuracy"])
+  for perc in tqdm(range(4), leave=False, desc="percentile"):
+    perc = 100 - 2**perc
+    replacedInputs = replace(inputs, maps, n_percentile=perc, approach="replaceWithInterp")
+    dataLoader = createLoader(replacedInputs, labels)
+    accs.append(evaluate(model, dataLoader, output_dict=True)["accuracy"])
+  return accs
