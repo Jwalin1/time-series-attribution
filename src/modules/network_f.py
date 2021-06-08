@@ -45,7 +45,7 @@ def train_model(model,criterion,optimizer,scheduler,dataloaders,epochs,check_eve
   avg_loss = {phase:0 for phase in phases}
   avg_losses = {phase:[] for phase in phases}
 
-  for epoch in tqdm(range(epochs)):  # loop over the dataset multiple times
+  for epoch in tqdm(range(epochs), desc="epoch"):  # loop over the dataset multiple times
 
     batchLoss = {phase:[] for phase in phases}
 
@@ -119,13 +119,13 @@ def train_model(model,criterion,optimizer,scheduler,dataloaders,epochs,check_eve
   return best_params, last_params
 
 
-def evaluate(model, loader):
+def evaluate(model, dataLoader, output_dict=False):
 
   model.eval()
   outTrue = []
   outPred = []
 
-  for i, (inputBatch,outTrueBatch) in enumerate(tqdm(loader)):
+  for i, (inputBatch,outTrueBatch) in enumerate(tqdm(dataLoader, leave=False, desc="eval")):
     with torch.no_grad():
 
       inputBatch = inputBatch.to(device).float()
@@ -135,12 +135,11 @@ def evaluate(model, loader):
       outPredBatch = model(inputBatch).argmax(1)
       outPred.extend(outPredBatch.cpu())
 
-  print(classification_report(outTrue, outPred, digits=4))  
+  return classification_report(outTrue, outPred, digits=4, output_dict=output_dict)
 
 
 
 def save_state_dict(model, path):
-  curr_dir = os.getcwd()
   if not os.path.exists("models"):
     os.mkdir("models");   # create a dir to store models
 
