@@ -43,7 +43,7 @@ def extract_zip(path_to_zip_file, directory_to_extract_to):
 def breakData(data):
   inputs = []
   labels = []
-  for sample in tqdm(data, leave=False):
+  for sample in tqdm(data, leave=False, desc="processing"):
 
     if isinstance(sample[0], np.ndarray):   # check if input has more than 1 channel
       channels = [list(channel) for channel in sample[0]]  
@@ -119,7 +119,7 @@ def getRead_data(dataset):
 def interpolate(inputs, new_size):
   n_samples, n_channels, sample_lens = inputs.shape
   new_inputs = np.zeros((n_samples,n_channels,new_size))
-  for sample in tqdm(range(n_samples), leave=False):
+  for sample in tqdm(range(n_samples), leave=False, desc="resizing"):
     for channel in range(n_channels):
       vals = inputs[sample,channel]
       new_inputs[sample,channel] = np.interp(np.linspace(0,len(vals)-1,new_size),range(len(vals)), vals)
@@ -161,7 +161,7 @@ class mydataset(Dataset):
     return input,label
 
 # function to create train, val and test loaders
-def createLoaders(train_inputs, train_labels, test_inputs, test_labels, batch_size, val_percent=.25):
+def createLoaders(train_inputs, train_labels, test_inputs, test_labels, batch_size=32, val_percent=.25):
   train_inputs, val_inputs, train_labels, val_labels = train_test_split(train_inputs, train_labels, test_size=val_percent, random_state=0)
 
   train_dataset = mydataset(train_inputs, train_labels)
@@ -176,19 +176,27 @@ def createLoaders(train_inputs, train_labels, test_inputs, test_labels, batch_si
   dataloaders = {"train":train_loader, "val":val_loader, "test":test_loader}
   return dataloaders
 
+def createLoader(inputs, labels, batch_size=64):
+  dataset = mydataset(inputs, labels)
+  loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+  return loader
+
 
 # function to select 'n' inputs distributed over the classes
-def selectInputs(inputs, labels, n):
+def subsample(inputs, labels, n):
   tota_samples = (len(inputs))
   classes = np.unique(labels)
   selectedInputs = []
+  selectedLabels = []
   for claSS in classes:
-    class_samples = inputs[np.where(labels==claSS)]
+    class_samples = inputs[labels==claSS]
+    class_labels = labels[labels==claSS]
     class_percent = len(class_samples) / tota_samples
     n_samples = round(n*class_percent)
     selectedInputs.extend(class_samples[:n_samples])
+    selectedLabels.extend(class_labels[:n_samples])
     print("class %d : %d samples" % (claSS, n_samples))
-  return np.array(selectedInputs)
+  return np.array(selectedInputs), np.array(selectedLabels)
 
 # functions to save and load the output of attribution methods
 def saveMaps(maps, method, dataset):
