@@ -14,7 +14,7 @@ importlib.reload(attribution_f)
 def main(args):
   train_inputs, train_labels, test_inputs, test_labels = data_f.getRead_data(args.dataset)
   print("train_inputs shape:",train_inputs.shape)
-  dataloaders = data_f.createLoaders(train_inputs, train_labels, test_inputs, test_labels, 32)
+  dataloaders = data_f.createLoaders(train_inputs, train_labels, test_inputs, test_labels)
   trainValLoaders = {"train":dataloaders["train"], "val":dataloaders["val"]}
   n_samples, n_channels, sample_lens = train_inputs.shape
   classes = np.unique(train_labels)
@@ -29,19 +29,25 @@ def main(args):
     model.load_state_dict(best_params)
     if args.save is not None:
       network_f.save_state_dict(model, args.dataset)
-  # network_f.evaluate(model, dataloaders["test"])
+  # print(network_f.evaluate(model, dataloaders["test"]))
 
-  # x = train_inputs[np.where(train_labels==1)]
-  # map1 = attribution_f.applyMethod(args.method, model, [x[0]])
-  # attribution_f.visualizeMaps([x[0]], map1)
+  # x = train_inputs[np.where(train_labels==1)][:2]
+  # maps = attribution_f.applyMethod(args.method, model, x)
+  # attribution_f.visualizeMaps(x, maps)
+  # dataloader = data_f.createLoader(x, [1,1])
+  # print(network_f.evaluate(model, dataloader))
+  # replacedInputs = attribution_f.replace(x, maps, n_percentile=90, approach="replaceWithInterp")
+  # attribution_f.visualizeMaps(x, replacedInputs)
+  # dataloader = data_f.createLoader(replacedInputs, [1,1])
+  # print(network_f.evaluate(model, dataloader))
 
-  selectedInputs = data_f.selectInputs(train_inputs, train_labels, args.n_samples)
+  selectedInputs, selectedLabels = data_f.subsample(train_inputs, train_labels, args.n_samples)
   maps = attribution_f.applyMethod(args.method, model, selectedInputs)
+  attribution_f.visualizeMaps(selectedInputs, maps)
   data_f.saveMaps(maps, args.method, args.dataset)
   maps = data_f.loadMaps(args.method, args.dataset)
-  attribution_f.visualizeMaps(selectedInputs, maps)
-  replacedInputs = attribution_f.replace(selectedInputs, maps, approach="replaceWithZero")
 
+  #print(attribution_f.gridEval(model, selectedInputs, selectedLabels, maps))
 
 
 if __name__ == "__main__":
