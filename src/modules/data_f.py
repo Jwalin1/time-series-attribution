@@ -8,7 +8,7 @@ import requests
 from scipy.io import arff
 
 # to track progress
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 
 # to create dataset and dataloaders
 from torch.utils.data import DataLoader, Dataset

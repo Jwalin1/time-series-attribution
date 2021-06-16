@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import torch
 
 # to track progress
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 
 # for attribution
 # https://captum.ai/api/attribution.html

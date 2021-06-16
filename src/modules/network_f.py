@@ -14,7 +14,7 @@ from copy import deepcopy
 from sklearn.metrics import classification_report
 
 # to track progress
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 
 torch.manual_seed(0)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

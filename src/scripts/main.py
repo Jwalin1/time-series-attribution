@@ -1,6 +1,9 @@
 import numpy as np
 import argparse
 
+import sys
+sys.path.append("../")
+
 # import modules
 from modules import data_f, network_f, network_architectures, attribution_f
 
@@ -8,6 +11,8 @@ from modules import data_f, network_f, network_architectures, attribution_f
 import importlib
 importlib.reload(attribution_f)
 
+import os
+os.chdir("../")
 
 
 
