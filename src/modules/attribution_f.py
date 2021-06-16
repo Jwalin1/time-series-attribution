@@ -17,16 +17,24 @@ from modules.cam import GradCAMpp, SmoothGradCAMpp, ScoreCAM
 from modules.rise import RISE
 
 from modules.network_f import evaluate
-from modules.data_f import createLoader
+from modules.data_f import createLoader, interpolate
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def applyMethod(method, model, inputs):
   captum_methods = ["Saliency, IntegratedGradients, InputXGradient, GuidedBackprop, LayerGradCam, GuidedGradCam, Lime"]
   if method in captum_methods:
-    return applyMethodBatch(method, model, inputs)
+    maps = applyMethodBatch(method, model, inputs)
   else:
-    return applyMethodSample(method, model, inputs)
+    maps = applyMethodSample(method, model, inputs)
+
+  maps = np.array(maps)
+  _, _, sample_len = inputs.shape
+  _, _, map_len = maps.shape
+  if sample_len != map_len:
+      maps = interpolate(maps,sample_len)
+
+  return maps
 
 def applyMethodBatch(method, model, inputs):
   dummyLabels = [0]*len(inputs)
@@ -54,7 +62,7 @@ def applyMethodBatch(method, model, inputs):
 
     attribution = attribution.detach().cpu().numpy()
     maps.extend(attribution)
-  return np.array(maps)  
+  return maps
 
 def applyMethodSample(method, model, samples):
   model.eval()
@@ -70,17 +78,17 @@ def applyMethodSample(method, model, samples):
       interpreter = globals()[method](model, input_size=(sample.shape[2]))
     else:
       interpreter = globals()[method](model)
-      
+
     if method in ["GradCAMpp", "SmoothGradCAMpp", "ScoreCAM"]:
       attribution, idx = interpreter(sample)
     elif method == "RISE":
       attribution = interpreter(sample)[target].view(1,1,-1)
-    else:  
+    else:
       attribution = interpreter.attribute(sample, target=target)
 
     attribution = attribution.squeeze(0).detach().cpu().numpy()
     maps.append(attribution)
-  return np.array(maps)
+  return maps
 
 def visualizeMaps(inputs, maps):
   for sample, map1 in zip(inputs,maps):
@@ -105,11 +113,11 @@ def replace(inputs, maps, n_percentile=90, imp="most", approach="replaceWithZero
       new_sample = np.where(map1 < nth_percentile, replaceWith, sample) if imp == "least" else np.where(map1 > nth_percentile, replaceWith, sample)
     elif approach == "replaceWithMean":
       replaceWith = np.array([np.mean(sample, axis=1),]*sample_lens).transpose()
-      new_sample = np.where(map1 < nth_percentile, replaceWith, sample) if imp == "least" else np.where(map1 > nth_percentile, replaceWith, sample)      
+      new_sample = np.where(map1 < nth_percentile, replaceWith, sample) if imp == "least" else np.where(map1 > nth_percentile, replaceWith, sample)
     elif approach == "replaceWithInterp":
       nth_percentile = np.percentile(map1,n_percentile)
-      imp_pts = np.where(map1 < nth_percentile) if imp == "least" else np.where(map1 > nth_percentile)        
-      new_sample = np.zeros((n_channels,sample_lens))
+      imp_pts = np.where(map1 < nth_percentile) if imp == "least" else np.where(map1 > nth_percentile)
+      new_sample = np.zeros(sample.shape)
       for channel in range(n_channels):
         indxs = imp_pts[1][imp_pts[0]==channel]
         #indxs = [i for i in range(sample_lens) if i not in indxs]
@@ -127,28 +135,30 @@ def replace(inputs, maps, n_percentile=90, imp="most", approach="replaceWithZero
             i = j
           else:
             vals.append(ch_vals[i])
-            i += 1  
+            i += 1
         new_sample[channel] = vals
     elif approach == "remove":
-      imp_pts = np.where(map1 < nth_percentile) if imp == "least" else np.where(map1 > nth_percentile)        
-      new_sample = np.zeros((n_channels,sample_lens))
+      imp_pts = np.where(map1 < nth_percentile) if imp == "least" else np.where(map1 > nth_percentile)
+      new_sample = np.zeros(sample.shape)
       for channel in range(n_channels):
         indxs = imp_pts[1][imp_pts[0]==channel]
         indxs = [i for i in range(sample_lens) if i not in indxs]
         vals = sample[channel][indxs]
         new_sample[channel] = np.interp(np.linspace(0,len(vals)-1,sample_lens),range(len(vals)), vals)
-        
+
     replaced_samples.append(new_sample)
   return np.array(replaced_samples)
 
 
 def gridEval(model, inputs, labels, maps):
   accs = []
+  approaches = ["replaceWithZero", "replaceWithMean", "replaceWithInterp"]
   dataLoader = createLoader(inputs, labels)
   accs.append(evaluate(model, dataLoader, output_dict=True)["accuracy"])
-  for perc in tqdm(range(4), leave=False, desc="percentile"):
-    perc = 100 - 2**perc
-    replacedInputs = replace(inputs, maps, n_percentile=perc, approach="replaceWithInterp")
-    dataLoader = createLoader(replacedInputs, labels)
-    accs.append(evaluate(model, dataLoader, output_dict=True)["accuracy"])
+  for approach in approaches:
+    for perc in tqdm(range(4), leave=False, desc="percentile"):
+      perc = 100 - 2**perc
+      replacedInputs = replace(inputs, maps, n_percentile=perc, approach=approach)
+      dataLoader = createLoader(replacedInputs, labels)
+      accs.append(evaluate(model, dataLoader, output_dict=True)["accuracy"])
   return accs

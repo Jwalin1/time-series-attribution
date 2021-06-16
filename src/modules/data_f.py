@@ -200,13 +200,13 @@ def subsample(inputs, labels, n):
 
 # functions to save and load the output of attribution methods
 def saveMaps(maps, method, dataset):
-  if not os.path.exists("results"):
-    os.mkdir("results");   # create a dir to store models
-  outfile = "results/" + dataset + '_' + method
+  if not os.path.exists("maps"):
+    os.mkdir("maps");   # create a dir to store models
+  outfile = "maps/" + dataset + '_' + method
   np.save(outfile, maps)
   return
 
 def loadMaps(method, dataset):
-  file = "results/" + dataset + '_' + method + ".npy"
+  file = "maps/" + dataset + '_' + method + ".npy"
   maps = np.load(file)
   return maps
