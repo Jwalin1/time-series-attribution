@@ -1,12 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import json
 
-# for neural network
-import torch
-
-# to track progress
-from tqdm import tqdm
+import json     # to save results dict
+import warnings # to filter out warnings
+import torch    # for neural network
+from tqdm import tqdm   # to track progress
 
 # for attribution
 # https://captum.ai/api/attribution.html
@@ -21,9 +19,12 @@ from modules.network_f import evaluate
 from modules.data_f import createLoader, interpolate
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+warnings.filterwarnings("ignore", message="Using a non-full backward hook when the forward contains multiple autograd Nodes ")
+warnings.filterwarnings("ignore", message="Setting backward hooks on ReLU activations.")
 
 def applyMethod(method, model, inputs):
   captum_methods = ["Saliency", "IntegratedGradients", "InputXGradient", "GuidedBackprop", "LayerGradCam", "GuidedGradCam", "Lime"]
+  del captum_methods[-1]    # exclude Lime since it gives a warning when passing multiple inputs
   if method in captum_methods:
     maps = applyMethodBatch(method, model, inputs)
   else:
@@ -68,7 +69,7 @@ def applyMethodBatch(method, model, inputs):
 def applyMethodSample(method, model, samples):
   model.eval()
   maps = []
-  for sample in tqdm(samples, leave=False, desc=method):
+  for sample in tqdm(samples, leave=True, desc=method):
 
     sample = torch.from_numpy(sample).to(device).unsqueeze(0)
     sample = sample.float().requires_grad_(True)
@@ -162,7 +163,7 @@ def gridEval(model, inputs, labels):
   dataLoader = createLoader(inputs, labels)
   accs_attribMethods["no_replace"] = evaluate(model, dataLoader, output_dict=True)["accuracy"]
 
-  for method in methods:
+  for method in tqdm(methods, leave=False, desc="methods"):
     accs_replaceApproach = {}
     maps = applyMethod(method, model, inputs)
     for approach in tqdm(approaches, leave=False, desc="approaches"):
