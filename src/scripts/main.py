@@ -1,6 +1,7 @@
 import numpy as np
 import argparse
 
+# to be able to import other python files
 import sys
 sys.path.append("../")
 
@@ -11,8 +12,9 @@ from modules import data_f, network_f, network_architectures, attribution_f
 import importlib
 importlib.reload(attribution_f)
 
+# change directory to project directory
 import os
-os.chdir("../")
+os.chdir("../../")
 
 
 
@@ -39,20 +41,17 @@ def main(args):
   # x = train_inputs[np.where(train_labels==1)][:2]
   # maps = attribution_f.applyMethod(args.method, model, x)
   # attribution_f.visualizeMaps(x, maps)
+  # data_f.saveMaps(maps, args.method, args.dataset)
+  # maps = data_f.loadMaps(args.method, args.dataset)
   # dataloader = data_f.createLoader(x, [1,1])
   # print(network_f.evaluate(model, dataloader))
-  # replacedInputs = attribution_f.replace(x, maps, n_percentile=90, approach="replaceWithInterp")
+  # replacedInputs = attribution_f.replace(x, maps, n_percentile=90, approach="replaceWithZero")
   # attribution_f.visualizeMaps(x, replacedInputs)
   # dataloader = data_f.createLoader(replacedInputs, [1,1])
   # print(network_f.evaluate(model, dataloader))
 
   selectedInputs, selectedLabels = data_f.subsample(train_inputs, train_labels, args.n_samples)
-  maps = attribution_f.applyMethod(args.method, model, selectedInputs)
-  attribution_f.visualizeMaps(selectedInputs, maps)
-  data_f.saveMaps(maps, args.method, args.dataset)
-  maps = data_f.loadMaps(args.method, args.dataset)
-
-  #print(attribution_f.gridEval(model, selectedInputs, selectedLabels, maps))
+  accs_dict = attribution_f.gridEval(model, selectedInputs, selectedLabels)
 
 
 if __name__ == "__main__":

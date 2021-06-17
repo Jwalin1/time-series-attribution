@@ -7,7 +7,5 @@ export PATH=/netscratch/bhatt/Environment/miniconda3/bin/:$PATH
 cd /netscratch/bhatt/Repositories/time-series-attribution/src/scripts/
 
 python main.py  --dataset "SyntheticAnomaly" \
-                        --save True \
-                        --epochs 200 \
-                        --n_samples 10 \
-                        --method "GradCAMpp"
+                        --load True \
+                        --n_samples 1000

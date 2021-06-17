@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import json
 
 # for neural network
 import torch
@@ -22,7 +23,7 @@ from modules.data_f import createLoader, interpolate
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def applyMethod(method, model, inputs):
-  captum_methods = ["Saliency, IntegratedGradients, InputXGradient, GuidedBackprop, LayerGradCam, GuidedGradCam, Lime"]
+  captum_methods = ["Saliency", "IntegratedGradients", "InputXGradient", "GuidedBackprop", "LayerGradCam", "GuidedGradCam", "Lime"]
   if method in captum_methods:
     maps = applyMethodBatch(method, model, inputs)
   else:
@@ -150,15 +151,29 @@ def replace(inputs, maps, n_percentile=90, imp="most", approach="replaceWithZero
   return np.array(replaced_samples)
 
 
-def gridEval(model, inputs, labels, maps):
-  accs = []
+def gridEval(model, inputs, labels):
+  accs_attribMethods = {}
   approaches = ["replaceWithZero", "replaceWithMean", "replaceWithInterp"]
+
+  captum_methods = ["Saliency", "IntegratedGradients", "InputXGradient", "GuidedBackprop", "LayerGradCam", "GuidedGradCam", "Lime"]
+  yiskw713_methods = ["GradCAMpp", "SmoothGradCAMpp", "ScoreCAM", "RISE"]
+  methods = captum_methods + yiskw713_methods
+
   dataLoader = createLoader(inputs, labels)
-  accs.append(evaluate(model, dataLoader, output_dict=True)["accuracy"])
-  for approach in approaches:
-    for perc in tqdm(range(4), leave=False, desc="percentile"):
-      perc = 100 - 2**perc
-      replacedInputs = replace(inputs, maps, n_percentile=perc, approach=approach)
-      dataLoader = createLoader(replacedInputs, labels)
-      accs.append(evaluate(model, dataLoader, output_dict=True)["accuracy"])
-  return accs
+  accs_attribMethods["no_replace"] = evaluate(model, dataLoader, output_dict=True)["accuracy"]
+
+  for method in methods:
+    accs_replaceApproach = {}
+    maps = applyMethod(method, model, inputs)
+    for approach in tqdm(approaches, leave=False, desc="approaches"):
+      accs = {}
+      for perc in tqdm(range(4), leave=False, desc="percentile"):
+        perc = 100 - 2**perc
+        replacedInputs = replace(inputs, maps, n_percentile=perc, approach=approach)
+        dataLoader = createLoader(replacedInputs, labels)
+        accs[perc] = evaluate(model, dataLoader, output_dict=True)["accuracy"]
+      accs_replaceApproach[approach] = accs
+    accs_attribMethods[method] = accs_replaceApproach
+  with open("results/replacement_results.json","w") as f:
+    json.dump(accs_attribMethods,f)
+  return accs_replaceApproach
