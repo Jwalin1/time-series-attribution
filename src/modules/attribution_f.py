@@ -152,13 +152,21 @@ def replace(inputs, maps, n_percentile=90, imp="most", approach="replaceWithZero
   return np.array(replaced_samples)
 
 
-def gridEval(model, inputs, labels):
+def gridEval(model, inputs, labels, params):
   accs_attribMethods = {}
-  approaches = ["replaceWithZero", "replaceWithMean", "replaceWithInterp"]
+  if "approaches" not in params:
+    approaches = ["replaceWithZero", "replaceWithMean", "replaceWithInterp"]
+  else:
+    approaches = params["approaches"]
 
   captum_methods = ["Saliency", "IntegratedGradients", "InputXGradient", "GuidedBackprop", "LayerGradCam", "GuidedGradCam", "Lime"]
   yiskw713_methods = ["GradCAMpp", "SmoothGradCAMpp", "ScoreCAM", "RISE"]
-  methods = captum_methods + yiskw713_methods
+  if "methods" not in params:
+    methods = captum_methods + yiskw713_methods
+  else:
+    methods = params["methods"]
+
+  percs = np.linspace(params["percs"][0],params["percs"][1],params["percs"][2])
 
   dataLoader = createLoader(inputs, labels)
   accs_attribMethods["no_replace"] = evaluate(model, dataLoader, output_dict=True)["accuracy"]
@@ -168,8 +176,7 @@ def gridEval(model, inputs, labels):
     maps = applyMethod(method, model, inputs)
     for approach in tqdm(approaches, leave=False, desc="approaches"):
       accs = {}
-      for perc in tqdm(range(4), leave=False, desc="percentile"):
-        perc = 100 - 2**perc
+      for perc in tqdm(percs, leave=False, desc="percentile"):
         replacedInputs = replace(inputs, maps, n_percentile=perc, approach=approach)
         dataLoader = createLoader(replacedInputs, labels)
         accs[perc] = evaluate(model, dataLoader, output_dict=True)["accuracy"]

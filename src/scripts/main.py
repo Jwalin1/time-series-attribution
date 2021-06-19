@@ -1,6 +1,9 @@
 import numpy as np
 import argparse
 
+# to parse input in dict form
+import json
+
 # to be able to import other python files
 import sys
 sys.path.append("../")
@@ -51,7 +54,7 @@ def main(args):
   # print(network_f.evaluate(model, dataloader))
 
   selectedInputs, selectedLabels = data_f.subsample(train_inputs, train_labels, args.n_samples)
-  accs_dict = attribution_f.gridEval(model, selectedInputs, selectedLabels)
+  accs_dict = attribution_f.gridEval(model, selectedInputs, selectedLabels, args.gridEvalParams)
 
 
 if __name__ == "__main__":
@@ -62,6 +65,7 @@ if __name__ == "__main__":
   parser.add_argument("--load", type=str)
   parser.add_argument("--n_samples", type=int)
   parser.add_argument("--method", type=str, help="attribution method to be applied")
+  parser.add_argument("--gridEvalParams", type=json.loads, help="dict containing ranges for grid eval params")
 
   args = parser.parse_args()
   main(args)
