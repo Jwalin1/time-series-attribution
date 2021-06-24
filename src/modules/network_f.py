@@ -175,5 +175,5 @@ def randomize_layers(model, n_layers):
     rand_model = deepcopy(model)
     layers = get_children(rand_model)
     for i in range(n_layers):
-      layers[-i].reset_parameters()
+      layers[i].reset_parameters()
     return rand_model

@@ -9,4 +9,4 @@ cd /netscratch/bhatt/Repositories/time-series-attribution/src/scripts/
 python main.py  --dataset "UWaveGestureLibraryAll" \
                         --load True \
                         --n_samples 1000  \
-                        --gridEvalParams '{"percs" : [99,98,96,92], "rand_layers":3'}
+                        --gridEvalParams '{"percs" : [99,98,96,92], "rand_layers":-3'}

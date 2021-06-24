@@ -168,11 +168,16 @@ def gridEval(model, inputs, labels, params):
     methods = params["methods"]
 
   percs = params["percs"]
-  rand_layers = params["rand_layers"] + 1
+  if params["rand_layers"] > 0:
+    rand_layers = range(params["rand_layers"] + 1)
+  elif params["rand_layers"] < 0::
+    rand_layers = range(0, params["rand_layers"] -1, -1)
+  else:
+    rand_layers = [0]
 
 
   accs_randModel = {}
-  for rand_layer in tqdm(range(rand_layers), leave=False, desc="randomized"):
+  for rand_layer in tqdm(rand_layers, leave=False, desc="randomized"):
     # get model with last n layers randomized
     rand_model = randomize_layers(model, rand_layer)
 

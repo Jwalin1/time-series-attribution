@@ -80,7 +80,7 @@ if __name__ == "__main__":
   parser.add_argument("--n_samples", type=int)
   parser.add_argument("--method", type=str, help="attribution method to be applied")
   parser.add_argument("--gridEvalParams", type=json.loads, help="dict containing ranges for grid eval params")
-  # keys are {"methods" : ["Saliency","GradCAMpp","SmoothGradCAMpp"],  "approaches" : ["replaceWithMean", "replaceWithInterp"],  "percs" : [99,98,96,92], "rand_layers":3'}
+  # keys are {"methods" : ["Saliency","GradCAMpp","SmoothGradCAMpp"],  "approaches" : ["replaceWithMean", "replaceWithInterp"],  "percs" : [99,98,96,92], "rand_layers":-3'}
 
   args = parser.parse_args()
   main(args)
