@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-import json     # to save results dict
 import warnings # to filter out warnings
 import torch    # for neural network
 from tqdm import tqdm   # to track progress
@@ -15,12 +14,15 @@ from modules.cam import GradCAMpp, SmoothGradCAMpp, ScoreCAM
 # https://github.com/yiskw713/RISE
 from modules.rise import RISE
 
-from modules.network_f import evaluate
+from modules.network_f import evaluate, randomize_layers
 from modules.data_f import createLoader, interpolate
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+from sklearn.exceptions import ConvergenceWarning
 warnings.filterwarnings("ignore", message="Using a non-full backward hook when the forward contains multiple autograd Nodes ")
 warnings.filterwarnings("ignore", message="Setting backward hooks on ReLU activations.")
+warnings.filterwarnings("ignore", category=ConvergenceWarning)
+
 
 def applyMethod(method, model, inputs):
   captum_methods = ["Saliency", "IntegratedGradients", "InputXGradient", "GuidedBackprop", "LayerGradCam", "GuidedGradCam", "Lime"]
@@ -69,7 +71,7 @@ def applyMethodBatch(method, model, inputs):
 def applyMethodSample(method, model, samples):
   model.eval()
   maps = []
-  for sample in tqdm(samples, leave=True, desc=method):
+  for sample in tqdm(samples, leave=False, desc=method):
 
     sample = torch.from_numpy(sample).to(device).unsqueeze(0)
     sample = sample.float().requires_grad_(True)
@@ -153,7 +155,6 @@ def replace(inputs, maps, n_percentile=90, imp="most", approach="replaceWithZero
 
 
 def gridEval(model, inputs, labels, params):
-  accs_attribMethods = {}
   if "approaches" not in params:
     approaches = ["replaceWithZero", "replaceWithMean", "replaceWithInterp"]
   else:
@@ -166,22 +167,30 @@ def gridEval(model, inputs, labels, params):
   else:
     methods = params["methods"]
 
-  percs = np.linspace(params["percs"][0],params["percs"][1],params["percs"][2])
+  percs = params["percs"]
+  rand_layers = params["rand_layers"] + 1
 
-  dataLoader = createLoader(inputs, labels)
-  accs_attribMethods["no_replace"] = evaluate(model, dataLoader, output_dict=True)["accuracy"]
 
-  for method in tqdm(methods, leave=False, desc="methods"):
-    accs_replaceApproach = {}
-    maps = applyMethod(method, model, inputs)
-    for approach in tqdm(approaches, leave=False, desc="approaches"):
-      accs = {}
-      for perc in tqdm(percs, leave=False, desc="percentile"):
-        replacedInputs = replace(inputs, maps, n_percentile=perc, approach=approach)
-        dataLoader = createLoader(replacedInputs, labels)
-        accs[perc] = evaluate(model, dataLoader, output_dict=True)["accuracy"]
-      accs_replaceApproach[approach] = accs
-    accs_attribMethods[method] = accs_replaceApproach
-  with open("results/replacement_results.json","w") as f:
-    json.dump(accs_attribMethods,f)
-  return accs_replaceApproach
+  accs_randModel = {}
+  for rand_layer in tqdm(range(rand_layers), leave=False, desc="randomized"):
+    # get model with last n layers randomized
+    rand_model = randomize_layers(model, rand_layer)
+
+    accs_attribMethods = {}
+    dataLoader = createLoader(inputs, labels)
+    accs_attribMethods["no_replace"] = evaluate(rand_model, dataLoader, output_dict=True)["accuracy"]
+
+    for method in tqdm(methods, leave=False, desc="methods"):
+      accs_replaceApproach = {}
+      maps = applyMethod(method, rand_model, inputs)
+      for approach in tqdm(approaches, leave=False, desc="approaches"):
+        accs = {}
+        for perc in tqdm(percs, leave=False, desc="percentile"):
+          replacedInputs = replace(inputs, maps, n_percentile=perc, approach=approach)
+          dataLoader = createLoader(replacedInputs, labels)
+          accs[perc] = evaluate(rand_model, dataLoader, output_dict=True)["accuracy"]
+        accs_replaceApproach[approach] = accs
+      accs_attribMethods[method] = accs_replaceApproach
+    accs_randModel[rand_layer] = accs_attribMethods
+
+  return accs_randModel

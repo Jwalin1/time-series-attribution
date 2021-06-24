@@ -28,7 +28,7 @@ def setupModel(model):
   #Define a Loss function and optimizer
   criterion = nn.CrossEntropyLoss()
   optimizer = optim.Adam(model.parameters(), lr=1e-3)
-  scheduler = ReduceLROnPlateau(optimizer, 'min') 
+  scheduler = ReduceLROnPlateau(optimizer, 'min')
   return model, criterion, optimizer, scheduler
 
 
@@ -53,7 +53,7 @@ def train_model(model,criterion,optimizer,scheduler,dataloaders,epochs,check_eve
     for phase in phases:
       if phase == "train":  model.train()  # Set model to training mode
       else: model.eval()   # Set model to evaluate mode
-        
+
       for i, (inputBatch,outTrueBatch) in enumerate(tqdm(dataloaders[phase], leave=False)):
 
         inputBatch = inputBatch.to(device).float()
@@ -74,7 +74,7 @@ def train_model(model,criterion,optimizer,scheduler,dataloaders,epochs,check_eve
 
     for phase in phases : avg_loss[phase] = np.mean(batchLoss[phase])
     scheduler.step(avg_loss["train"])
-        
+
     phase = "val" if valExists else "train"
     if epoch > 0:
       if avg_loss[phase] < min(avg_losses[phase]):
@@ -85,7 +85,7 @@ def train_model(model,criterion,optimizer,scheduler,dataloaders,epochs,check_eve
       best_epoch, best_loss = epoch, avg_loss[phase]
       movAvg_old = avg_loss[phase]
 
-    for phase in phases : avg_losses[phase].append(avg_loss[phase])  
+    for phase in phases : avg_losses[phase].append(avg_loss[phase])
 
     # print statistics
     if epoch % check_every == check_every - 1:
@@ -94,13 +94,13 @@ def train_model(model,criterion,optimizer,scheduler,dataloaders,epochs,check_eve
         print("%s loss: %.4f" % (phase, avg_loss[phase]), end=", ")
       if check_every > 1:   # else avg loss would be same as loss so no need to print
         print(" | ", end='')
-        for phase in phases:        
+        for phase in phases:
           print("avg %s loss: %.4f" % (phase, np.mean(avg_losses[phase][epoch+1-check_every:epoch+1])), end=", ")
       if valExists:
         movAvg_new = np.mean(avg_losses["val"][epoch+1-check_every:epoch+1])
 
       if (valExists) and earlyStopping:
-        if movAvg_old < movAvg_new: 
+        if movAvg_old < movAvg_new:
           print("\nStopping Early");  break
         else:   movAvg_old = movAvg_new
 
@@ -135,7 +135,7 @@ def evaluate(model, dataLoader, output_dict=False):
       outPredBatch = model(inputBatch).argmax(1)
       outPred.extend(outPredBatch.cpu())
 
-  return classification_report(outTrue, outPred, digits=4, output_dict=output_dict)
+  return classification_report(outTrue, outPred, digits=4, output_dict=output_dict, zero_division=0)
 
 
 
@@ -149,3 +149,31 @@ def save_state_dict(model, path):
 def load_state_dict(model, path):
   path = "models/" + path + ".pth"
   model.load_state_dict(torch.load(path, map_location=device))
+
+
+
+
+def get_children(model: torch.nn.Module):
+    # get children form model!
+    children = list(model.children())
+    flatt_children = []
+    if children == []:
+        # if model has no children; model is last child! :O
+        return model
+    else:
+       # look for children from children... to the last child!
+       for child in children:
+            try:
+                if len(list(child.parameters())) > 0:
+                  flatt_children.extend(get_children(child))
+            except TypeError:
+                flatt_children.append(get_children(child))
+    return flatt_children
+
+# randomize last n layer weights
+def randomize_layers(model, n_layers):
+    rand_model = deepcopy(model)
+    layers = get_children(rand_model)
+    for i in range(n_layers):
+      layers[-i].reset_parameters()
+    return rand_model
