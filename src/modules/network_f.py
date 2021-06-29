@@ -179,6 +179,10 @@ def get_children(model: torch.nn.Module):
 def randomize_layers(model, n_layers):
     rand_model = deepcopy(model)
     layers = get_children(rand_model)
-    for i in range(0,n_layers,np.sign(n_layers)):
-      layers[i].reset_parameters()
+    if n_layers > 0:
+      for i in range(n_layers):
+        layers[i].reset_parameters()
+    elif n_layers < 0:
+      for i in range(-1,n_layers-1,-1):
+        layers[i].reset_parameters()    
     return rand_model

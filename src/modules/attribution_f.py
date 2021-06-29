@@ -166,10 +166,8 @@ def gridEval(model, inputs, labels, params):
     methods = captum_methods + yiskw713_methods
   else:
     methods = params["methods"]
-
   percs = params["percs"]
   rand_layers = params["rand_layers"]
-
 
   accs_randModel = {}
   for rand_layer in tqdm(rand_layers, leave=False, desc="randomized"):
