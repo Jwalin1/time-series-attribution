@@ -170,7 +170,7 @@ def gridEval(model, inputs, labels, params):
   percs = params["percs"]
   if params["rand_layers"] > 0:
     rand_layers = range(params["rand_layers"] + 1)
-  elif params["rand_layers"] < 0::
+  elif params["rand_layers"] < 0:
     rand_layers = range(0, params["rand_layers"] -1, -1)
   else:
     rand_layers = [0]
