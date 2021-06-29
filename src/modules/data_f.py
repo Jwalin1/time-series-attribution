@@ -8,7 +8,7 @@ import requests
 from scipy.io import arff
 
 # to track progress
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 # to create dataset and dataloaders
 from torch.utils.data import DataLoader, Dataset
@@ -197,6 +197,21 @@ def subsample(inputs, labels, n):
     selectedLabels.extend(class_labels[:n_samples])
     print("class %d : %d samples" % (claSS, n_samples))
   return np.array(selectedInputs), np.array(selectedLabels)
+
+# function to select 'n' inputs from each classes
+def subsample2(inputs, labels, n):
+  n_samples = n if n is not None else 1
+  tota_samples = (len(inputs))
+  classes = np.unique(labels)
+  selectedInputs = []
+  selectedLabels = []
+  for claSS in classes:
+    class_samples = inputs[labels==claSS]
+    class_labels = labels[labels==claSS]
+    selectedInputs.extend(class_samples[:n_samples])
+    selectedLabels.extend(class_labels[:n_samples])
+    print("class %d : %d samples" % (claSS, n_samples))
+  return np.array(selectedInputs), np.array(selectedLabels)  
 
 # functions to save and load the output of attribution methods
 def saveMaps(maps, method, dataset):
