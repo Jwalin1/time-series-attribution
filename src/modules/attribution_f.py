@@ -174,7 +174,7 @@ def gridEval(model, inputs, labels, params):
   accs_randModel = {}
   for rand_layer in tqdm(rand_layers, leave=False, desc="randomized"):
     # get model with last n layers randomized
-    rand_model = randomize_layers(model, rand_layer)
+    rand_model = randomize_layers(model, rand_layer) if rand_layer!=0 else model
 
     accs_attribMethods = {}
     dataLoader = createLoader(inputs, labels)
