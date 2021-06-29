@@ -33,7 +33,7 @@ def main(args):
                     "Wafer","Strawberry","TwoPatterns","Epilepsy","UWaveGestureLibraryAll"]
       else:
         datasets = args.gridEvalParams["datasets"]
-    if args.visAttribParams is not None:
+    elif args.visAttribParams is not None:
       datasets = args.visAttribParams["datasets"]    
     else:
       datasets = [args.dataset]
