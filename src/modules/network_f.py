@@ -14,7 +14,7 @@ from copy import deepcopy
 from sklearn.metrics import classification_report
 
 # to track progress
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 torch.manual_seed(0)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -119,7 +119,7 @@ def train_model(model,criterion,optimizer,scheduler,dataloaders,epochs,check_eve
   return best_params, last_params
 
 
-def evaluate(model, dataLoader, output_dict=False):
+def evaluate(model, dataLoader, output_dict=False, output_pred=False):
 
   model.eval()
   outTrue = []
@@ -135,7 +135,10 @@ def evaluate(model, dataLoader, output_dict=False):
       outPredBatch = model(inputBatch).argmax(1)
       outPred.extend(outPredBatch.cpu())
 
-  return classification_report(outTrue, outPred, digits=4, output_dict=output_dict, zero_division=0)
+  if output_pred:
+    return outPred
+  else:  
+    return classification_report(outTrue, outPred, digits=4, output_dict=output_dict, zero_division=0)
 
 
 
