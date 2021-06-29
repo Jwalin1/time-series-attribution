@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 import warnings # to filter out warnings
 import torch    # for neural network
-from tqdm import tqdm   # to track progress
+from tqdm.auto import tqdm   # to track progress
 
 # for attribution
 # https://captum.ai/api/attribution.html
@@ -168,12 +168,7 @@ def gridEval(model, inputs, labels, params):
     methods = params["methods"]
 
   percs = params["percs"]
-  if params["rand_layers"] > 0:
-    rand_layers = range(params["rand_layers"] + 1)
-  elif params["rand_layers"] < 0:
-    rand_layers = range(0, params["rand_layers"] -1, -1)
-  else:
-    rand_layers = [0]
+  rand_layers = params["rand_layers"]
 
 
   accs_randModel = {}
@@ -199,3 +194,40 @@ def gridEval(model, inputs, labels, params):
     accs_randModel[rand_layer] = accs_attribMethods
 
   return accs_randModel
+
+
+def visEval(params, accs):
+  for dataset in params["datasets"]:
+    for rand_layer in params["rand_layers"]:
+      for method in params["methods"]:
+        for approach in params["approaches"]:
+          print("dataset:%s, rand_layer:%s, method:%s, approach:%s" % (dataset,rand_layer,method,approach))
+          x, y = zip(*accs[dataset][rand_layer][method][approach].items())
+          # append initial accuracy without replacement
+          x = list(x); x.insert(0,"100")
+          y = list(y); y.insert(0,accs[dataset][rand_layer]["no_replace"])
+          plt.plot(x,y)
+          plt.show()
+
+def visAttrib(model, inputs, labels, params):
+  for input, label in zip(inputs, labels):
+    input = np.expand_dims(input, 0)
+    label = np.expand_dims(label, 0)    
+    for rand_layer in tqdm(params["rand_layers"], leave=False, desc="randomized"):
+      rand_model = randomize_layers(model, rand_layer)
+      for method in tqdm(params["methods"], leave=False, desc="methods"):
+        map1 = applyMethod(method, rand_model, input)
+        for approach in tqdm(params["approaches"], leave=False, desc="approaches"):
+          for perc in tqdm(params["percs"], leave=False, desc="percentile"):
+            fig, axs = plt.subplots(3)
+            print("rand_layer:%s, method:%s, approach:%s" % (rand_layer,method,approach))
+            replacedInput = replace(input, map1, n_percentile=perc, approach=approach)
+            dataLoader = createLoader(input, label)
+            pred_label = evaluate(rand_model, dataLoader, output_pred=True)[0].cpu().numpy()
+            dataLoader = createLoader(replacedInput, label)
+            pred_label1 = evaluate(rand_model, dataLoader, output_pred=True)[0].cpu().numpy()
+            print("correct label:%s, pred label:%s, pred label after replace:%s" % (label[0],pred_label,pred_label1))
+            axs[0].plot(input[0].transpose())
+            axs[1].plot(map1[0].transpose())
+            axs[2].plot(replacedInput[0].transpose())
+            plt.show()
