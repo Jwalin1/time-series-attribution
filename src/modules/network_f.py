@@ -173,10 +173,12 @@ def get_children(model: torch.nn.Module):
                 flatt_children.append(get_children(child))
     return flatt_children
 
-# randomize last n layer weights
+# randomize n layer weights
+# from start if n > 0
+# from end if n < 0
 def randomize_layers(model, n_layers):
     rand_model = deepcopy(model)
     layers = get_children(rand_model)
-    for i in range(n_layers):
+    for i in range(0,n_layers,np.sign(n_layers):
       layers[i].reset_parameters()
     return rand_model

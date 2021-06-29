@@ -28,7 +28,7 @@ def main(args):
   if args.visEvalParams is None:
     if args.gridEvalParams is not None:
       if "datasets" not in args.gridEvalParams:
-        datasets = ["SyntheticAnomaly","CharacterTrajectories","FordA","ElectricDevices","Cricket",
+        datasets = ["CharacterTrajectories","SyntheticAnomaly","FordA","ElectricDevices","Cricket",
                     "LargeKitchenAppliances","PhalangesOutlinesCorrect","NonInvasiveFetalECGThorax1",
                     "Wafer","Strawberry","TwoPatterns","Epilepsy","UWaveGestureLibraryAll"]
       else:
