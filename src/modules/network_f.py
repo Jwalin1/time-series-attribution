@@ -157,32 +157,32 @@ def load_state_dict(model, path):
 
 
 def get_children(model: torch.nn.Module):
-    # get children form model!
-    children = list(model.children())
-    flatt_children = []
-    if children == []:
-        # if model has no children; model is last child! :O
-        return model
-    else:
-       # look for children from children... to the last child!
-       for child in children:
-            try:
-                if len(list(child.parameters())) > 0:
-                  flatt_children.extend(get_children(child))
-            except TypeError:
-                flatt_children.append(get_children(child))
-    return flatt_children
+  # get children form model!
+  children = list(model.children())
+  flatt_children = []
+  if children == []:
+    # if model has no children; model is last child! :O
+    return model
+  else:
+    # look for children from children... to the last child!
+    for child in children:
+      try:
+        if len(list(child.parameters())) > 0:
+          flatt_children.extend(get_children(child))
+      except TypeError:
+        flatt_children.append(get_children(child))
+  return flatt_children
 
 # randomize n layer weights
 # from start if n > 0
 # from end if n < 0
 def randomize_layers(model, n_layers):
-    rand_model = deepcopy(model)
-    layers = get_children(rand_model)
-    if n_layers > 0:
-      for i in range(n_layers):
-        layers[i].reset_parameters()
-    elif n_layers < 0:
-      for i in range(-1,n_layers-1,-1):
-        layers[i].reset_parameters()    
-    return rand_model
+  rand_model = deepcopy(model)
+  layers = get_children(rand_model)
+  if n_layers > 0:
+    for i in range(n_layers):
+      layers[i].reset_parameters()
+  elif n_layers < 0:
+    for i in range(-1,n_layers-1,-1):
+      layers[i].reset_parameters()    
+  return rand_model
