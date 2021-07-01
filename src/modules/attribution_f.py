@@ -27,7 +27,7 @@ captum_methods = ["Saliency", "IntegratedGradients", "InputXGradient", "GuidedBa
 yiskw713_methods = ["GradCAMpp", "SmoothGradCAMpp", "ScoreCAM", "RISE"]
 approaches = ["replaceWithZero", "replaceWithMean", "replaceWithInterp"]
 rand_layers = [0,-1,-2,-3]
-percs = [99,98,96,92]
+percs = [100,99,98,96,92]
 
 
 def applyMethod(method, model, inputs):
