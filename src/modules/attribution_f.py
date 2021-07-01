@@ -23,11 +23,15 @@ warnings.filterwarnings("ignore", message="Using a non-full backward hook when t
 warnings.filterwarnings("ignore", message="Setting backward hooks on ReLU activations.")
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
+captum_methods = ["Saliency", "IntegratedGradients", "InputXGradient", "GuidedBackprop", "LayerGradCam", "GuidedGradCam", "Lime"]
+yiskw713_methods = ["GradCAMpp", "SmoothGradCAMpp", "ScoreCAM", "RISE"]
+approaches = ["replaceWithZero", "replaceWithMean", "replaceWithInterp"]
+rand_layers = [0,-1,-2,-3]
+percs = [99,98,96,92]
+
 
 def applyMethod(method, model, inputs):
-  captum_methods = ["Saliency", "IntegratedGradients", "InputXGradient", "GuidedBackprop", "LayerGradCam", "GuidedGradCam", "Lime"]
-  del captum_methods[-1]    # exclude Lime since it gives a warning when passing multiple inputs
-  if method in captum_methods:
+  if method in captum_methods[:-1]: # excluded Lime since it gives a warning when passing multiple inputs
     maps = applyMethodBatch(method, model, inputs)
   else:
     maps = applyMethodSample(method, model, inputs)
@@ -155,34 +159,36 @@ def replace(inputs, maps, n_percentile=90, imp="most", approach="replaceWithZero
 
 
 def gridEval(model, inputs, labels, params):
-  if "approaches" not in params:
-    approaches = ["replaceWithZero", "replaceWithMean", "replaceWithInterp"]
+  if "approaches" in params:  # else the global list of approaches will be used
+    approaches1 = params["approaches"]
   else:
-    approaches = params["approaches"]
+    approaches1 = approaches  
 
-  captum_methods = ["Saliency", "IntegratedGradients", "InputXGradient", "GuidedBackprop", "LayerGradCam", "GuidedGradCam", "Lime"]
-  yiskw713_methods = ["GradCAMpp", "SmoothGradCAMpp", "ScoreCAM", "RISE"]
   if "methods" not in params:
     methods = captum_methods + yiskw713_methods
   else:
     methods = params["methods"]
+
   percs = params["percs"]
   rand_layers = params["rand_layers"]
+
 
   accs_randModel = {}
   for rand_layer in tqdm(rand_layers, leave=False, desc="randomized"):
     # get model with last n layers randomized
-    rand_model = randomize_layers(model, rand_layer) if rand_layer!=0 else model
+    rand_model = randomize_layers(model, rand_layer)
 
     accs_attribMethods = {}
     dataLoader = createLoader(inputs, labels)
-    accs_attribMethods["no_replace"] = evaluate(rand_model, dataLoader, output_dict=True)["accuracy"]
+    no_replace = evaluate(rand_model, dataLoader, output_dict=True)["accuracy"]
+    accs_attribMethods["no_replace"] = no_replace
 
     for method in tqdm(methods, leave=False, desc="methods"):
       accs_replaceApproach = {}
       maps = applyMethod(method, rand_model, inputs)
-      for approach in tqdm(approaches, leave=False, desc="approaches"):
+      for approach in tqdm(approaches1, leave=False, desc="approaches"):
         accs = {}
+        accs[100] = no_replace
         for perc in tqdm(percs, leave=False, desc="percentile"):
           replacedInputs = replace(inputs, maps, n_percentile=perc, approach=approach)
           dataLoader = createLoader(replacedInputs, labels)
@@ -195,17 +201,49 @@ def gridEval(model, inputs, labels, params):
 
 
 def visEval(params, accs):
-  for dataset in params["datasets"]:
-    for rand_layer in params["rand_layers"]:
-      for method in params["methods"]:
-        for approach in params["approaches"]:
-          print("dataset:%s, rand_layer:%s, method:%s, approach:%s" % (dataset,rand_layer,method,approach))
-          x, y = zip(*accs[dataset][rand_layer][method][approach].items())
-          # append initial accuracy without replacement
-          x = list(x); x.insert(0,"100")
-          y = list(y); y.insert(0,accs[dataset][rand_layer]["no_replace"])
-          plt.plot(x,y)
-          plt.show()
+  params_list = ["dataset", "rand_layer", "method", "approach", "perc"]
+  methods = captum_methods + yiskw713_methods
+  plot_paramKeys = []
+  plot_title = ""
+  for param in params:
+    if params[param] is None:
+      plot_paramKeys.append(param)
+    else:
+      plot_title += param + ':' + params[param] + " "
+
+  plot_paramKey1, plot_paramKey2 = plot_paramKeys
+  if plot_paramKey1 == "method":  plot_params1 = methods
+  elif plot_paramKey1 == "approach":  plot_params1 = approaches
+  elif plot_paramKey1 == "rand_layer":  plot_params1 = rand_layers
+  elif plot_paramKey1 == "perc":  plot_params1 = percs
+  if plot_paramKey2 == "method":  plot_params2 = methods
+  elif plot_paramKey2 == "approach":  plot_params2 = approaches
+  elif plot_paramKey2 == "rand_layer":  plot_params2 = rand_layers
+  elif plot_paramKey2 == "perc":  plot_params2 = percs
+  
+  for plot_paramValue1 in plot_params1:
+    x = []; y = []
+    for plot_paramValue2 in plot_params2:
+      tmp_dict = accs
+      for param in params_list:
+        if plot_paramKey1 == param:
+          tmp_dict = tmp_dict[str(plot_paramValue1)]
+        elif plot_paramKey2 == param:
+          tmp_dict = tmp_dict[str(plot_paramValue2)]
+        else:
+          tmp_dict = tmp_dict[str(params[param])]
+      x.append(plot_paramValue2);  y.append(tmp_dict)
+    plt.plot(range(len(x)), y, label=plot_paramValue1)
+    plt.gca().set_xticks(range(len(x)))
+    plt.gca().set_xticklabels(x)
+    if plt.gca().get_ylim()[1] > 1:  plt.ylim(top=1)
+    plt.ylabel("accuracy")
+    plt.xlabel(plot_paramKey2)
+    plt.title(plot_title)
+    plt.legend()
+
+  plt.show()  
+  return
 
 def visAttrib(model, inputs, labels, params):
   for input, label in zip(inputs, labels):

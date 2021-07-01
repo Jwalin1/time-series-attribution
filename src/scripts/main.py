@@ -4,6 +4,7 @@ from tqdm.auto import tqdm
 
 # to process dicts
 import json
+import ast
 
 # to be able to import other python files
 import sys
@@ -28,7 +29,7 @@ def main(args):
   if args.visEvalParams is None:
     if args.gridEvalParams is not None:
       if "datasets" not in args.gridEvalParams:
-        datasets = ["CharacterTrajectories","SyntheticAnomaly","FordA","ElectricDevices","Cricket",
+        datasets = ["SyntheticAnomaly","CharacterTrajectories","FordA","ElectricDevices","Cricket",
                     "LargeKitchenAppliances","PhalangesOutlinesCorrect","NonInvasiveFetalECGThorax1",
                     "Wafer","Strawberry","TwoPatterns","Epilepsy","UWaveGestureLibraryAll"]
       else:
@@ -83,9 +84,9 @@ if __name__ == "__main__":
   parser.add_argument("--load", type=str)
   parser.add_argument("--n_samples", type=int)
   parser.add_argument("--method", type=str, help="attribution method to be applied")
-  parser.add_argument("--gridEvalParams", type=json.loads, help="dict containing ranges for grid eval params")
-  parser.add_argument("--visEvalParams", type=json.loads, help="dict containing ranges for grid eval params")
-  parser.add_argument("--visAttribParams", type=json.loads, help="dict containing ranges for grid eval params")
+  parser.add_argument("--gridEvalParams", type=ast.literal_eval, help="dict containing ranges for grid eval params")
+  parser.add_argument("--visEvalParams", type=ast.literal_eval, help="dict containing ranges for vis eval params")
+  parser.add_argument("--visAttribParams", type=ast.literal_eval, help="dict containing ranges for vis attrib params")
   # keys are {"methods" : ["Saliency","GradCAMpp","SmoothGradCAMpp"],  "approaches" : ["replaceWithMean", "replaceWithInterp"],  "percs" : [99,98,96,92], "rand_layers":-3'}
 
   args = parser.parse_args()
