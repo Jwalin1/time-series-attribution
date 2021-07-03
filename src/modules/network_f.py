@@ -176,6 +176,7 @@ def get_children(model: torch.nn.Module):
 # randomize n layer weights
 # from start if n > 0
 # from end if n < 0
+# non randomized if n==0
 def randomize_layers(model, n_layers):
   rand_model = deepcopy(model)
   layers = get_children(rand_model)

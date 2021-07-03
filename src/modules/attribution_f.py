@@ -27,7 +27,7 @@ captum_methods = ["Saliency", "IntegratedGradients", "InputXGradient", "GuidedBa
 yiskw713_methods = ["GradCAMpp", "SmoothGradCAMpp", "ScoreCAM", "RISE"]
 approaches = ["replaceWithZero", "replaceWithMean", "replaceWithInterp"]
 rand_layers = [0,-1,-2,-3]
-percs = [100,99,98,96,92]
+percs = [99,98,96,92]
 
 
 def applyMethod(method, model, inputs):
@@ -174,13 +174,16 @@ def gridEval(model, inputs, labels, params):
 
 
   accs_randModel = {}
+  dataLoader = createLoader(inputs, labels)
+  # baseline accuracy
+  no_randomized = evaluate(model, dataLoader, output_dict=True)["accuracy"]
+  accs_randModel["no_randomized"] = no_randomized
   for rand_layer in tqdm(rand_layers, leave=False, desc="randomized"):
     # get model with last n layers randomized
     rand_model = randomize_layers(model, rand_layer)
+    no_replace = evaluate(rand_model, dataLoader, output_dict=True)["accuracy"]
 
     accs_attribMethods = {}
-    dataLoader = createLoader(inputs, labels)
-    no_replace = evaluate(rand_model, dataLoader, output_dict=True)["accuracy"]
     accs_attribMethods["no_replace"] = no_replace
 
     for method in tqdm(methods, leave=False, desc="methods"):
@@ -188,11 +191,10 @@ def gridEval(model, inputs, labels, params):
       maps = applyMethod(method, rand_model, inputs)
       for approach in tqdm(approaches1, leave=False, desc="approaches"):
         accs = {}
-        accs[100] = no_replace
         for perc in tqdm(percs, leave=False, desc="percentile"):
           replacedInputs = replace(inputs, maps, n_percentile=perc, approach=approach)
-          dataLoader = createLoader(replacedInputs, labels)
-          accs[perc] = evaluate(rand_model, dataLoader, output_dict=True)["accuracy"]
+          dataLoader1 = createLoader(replacedInputs, labels)
+          accs[perc] = evaluate(rand_model, dataLoader1, output_dict=True)["accuracy"]
         accs_replaceApproach[approach] = accs
       accs_attribMethods[method] = accs_replaceApproach
     accs_randModel[rand_layer] = accs_attribMethods
@@ -232,17 +234,21 @@ def visEval(params, accs):
           tmp_dict = tmp_dict[str(plot_paramValue2)]
         else:
           tmp_dict = tmp_dict[str(params[param])]
+        if type(tmp_dict) is dict and "no_randomized" in tmp_dict:
+          baseline = tmp_dict["no_randomized"]
       x.append(plot_paramValue2);  y.append(tmp_dict)
     plt.plot(range(len(x)), y, label=plot_paramValue1)
-    plt.gca().set_xticks(range(len(x)))
-    plt.gca().set_xticklabels(x)
-    if plt.gca().get_ylim()[1] > 1:  plt.ylim(top=1)
-    plt.ylabel("accuracy")
-    plt.xlabel(plot_paramKey2)
-    plt.title(plot_title)
-    plt.legend()
+  x = [baseline]*len(plot_params2)
+  plt.plot(x, label="baseline", ls='--')
+  plt.gca().set_xticks(range(len(plot_params2)))
+  plt.gca().set_xticklabels(plot_params2)
+  if plt.gca().get_ylim()[1] > 1:  plt.ylim(top=1)
+  plt.ylabel("accuracy")
+  plt.xlabel(plot_paramKey2)
+  plt.title(plot_title)
+  plt.legend()
 
-  plt.show()  
+  plt.show()
   return
 
 def visAttrib(model, inputs, labels, params):
