@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as axs
 
 import warnings # to filter out warnings
 import torch    # for neural network
@@ -101,13 +101,13 @@ def applyMethodSample(method, model, samples):
 def visualizeMaps(inputs, maps):
   for sample, map1 in zip(inputs,maps):
     # Visualize the sample and the map
-    fig, ax = plt.subplots(2, 1, figsize=(5,10))
+    fig, ax = axs.subplots(2, 1, figsize=(5,10))
     ax[0].plot(sample.transpose(1,0))
     ax[0].set_title("sample")
     ax[1].plot(map1.transpose(1,0))
     ax[1].set_title("map")
-    plt.tight_layout()
-    plt.show()
+    axs.tight_layout()
+    axs.show()
     print()
 
 
@@ -223,7 +223,8 @@ def visEval(params, accs):
   elif plot_paramKey2 == "rand_layer":  plot_params2 = rand_layers
   elif plot_paramKey2 == "perc":  plot_params2 = percs
   
-  for plot_paramValue1 in plot_params1:
+  fig, axs = plt.subplots()
+  for i,plot_paramValue1 in enumerate(plot_params1):
     x = []; y = []
     for plot_paramValue2 in plot_params2:
       tmp_dict = accs
@@ -237,16 +238,22 @@ def visEval(params, accs):
         if type(tmp_dict) is dict and "no_randomized" in tmp_dict:
           baseline = tmp_dict["no_randomized"]
       x.append(plot_paramValue2);  y.append(tmp_dict)
-    plt.plot(range(len(x)), y, label=plot_paramValue1)
+    if isinstance(plot_params2[0], str):
+      n_bars = len(plot_params1)
+      width = 0.6/(n_bars-1)
+      axs.bar(np.arange(len(x))+width*(i-(n_bars-1)/2), y, width, label=plot_paramValue1)
+    else:  
+      axs.plot(range(len(x)), y, label=plot_paramValue1)
   x = [baseline]*len(plot_params2)
-  plt.plot(x, label="baseline", ls='--')
-  plt.gca().set_xticks(range(len(plot_params2)))
-  plt.gca().set_xticklabels(plot_params2)
-  if plt.gca().get_ylim()[1] > 1:  plt.ylim(top=1)
-  plt.ylabel("accuracy")
-  plt.xlabel(plot_paramKey2)
-  plt.title(plot_title)
-  plt.legend()
+  axs.plot(x, label="baseline", ls='--')
+  plt.xticks(rotation=90)
+  axs.set_xticks(range(len(plot_params2)))
+  axs.set_xticklabels(plot_params2)
+  if axs.get_ylim()[1] > 1:  axs.set_ylim(top=1)
+  axs.set_ylabel("accuracy")
+  axs.set_xlabel(plot_paramKey2)
+  axs.set_title(plot_title)
+  axs.legend(loc='center left', bbox_to_anchor= (1.0, 0.5))
 
   plt.show()
   return
@@ -261,7 +268,7 @@ def visAttrib(model, inputs, labels, params):
         map1 = applyMethod(method, rand_model, input)
         for approach in tqdm(params["approaches"], leave=False, desc="approaches"):
           for perc in tqdm(params["percs"], leave=False, desc="percentile"):
-            fig, axs = plt.subplots(3)
+            fig, axs = axs.subplots(3)
             print("rand_layer:%s, method:%s, approach:%s" % (rand_layer,method,approach))
             replacedInput = replace(input, map1, n_percentile=perc, approach=approach)
             dataLoader = createLoader(input, label)
@@ -272,4 +279,4 @@ def visAttrib(model, inputs, labels, params):
             axs[0].plot(input[0].transpose())
             axs[1].plot(map1[0].transpose())
             axs[2].plot(replacedInput[0].transpose())
-            plt.show()
+            axs.show()
