@@ -253,7 +253,7 @@ def visEval(params, accs):
   axs.set_ylabel("accuracy")
   axs.set_xlabel(plot_paramKey2)
   axs.set_title(plot_title)
-  axs.legend(loc='center left', bbox_to_anchor= (1.0, 0.5))
+  axs.legend(title=plot_paramKey1,loc='center left', bbox_to_anchor= (1.0, 0.5))
 
   plt.show()
   return
