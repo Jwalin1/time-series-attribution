@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as axs
+import matplotlib.pyplot as plt
 
 import warnings # to filter out warnings
 import torch    # for neural network
@@ -25,9 +25,9 @@ warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
 captum_methods = ["Saliency", "IntegratedGradients", "InputXGradient", "GuidedBackprop", "LayerGradCam", "GuidedGradCam", "Lime"]
 yiskw713_methods = ["GradCAMpp", "SmoothGradCAMpp", "ScoreCAM", "RISE"]
-approaches = ["replaceWithZero", "replaceWithMean", "replaceWithInterp"]
+approaches = ["replaceWithZero_most", "replaceWithMean_most", "replaceWithInterp_most"]
 rand_layers = [0,-1,-2,-3]
-percs = [99,98,96,92]
+percs = [95,90,85,80]
 
 
 def applyMethod(method, model, inputs):
@@ -101,28 +101,29 @@ def applyMethodSample(method, model, samples):
 def visualizeMaps(inputs, maps):
   for sample, map1 in zip(inputs,maps):
     # Visualize the sample and the map
-    fig, ax = axs.subplots(2, 1, figsize=(5,10))
-    ax[0].plot(sample.transpose(1,0))
-    ax[0].set_title("sample")
-    ax[1].plot(map1.transpose(1,0))
-    ax[1].set_title("map")
+    fig, axs = plt.subplots(2, 1, figsize=(5,10))
+    axs[0].plot(sample.transpose(1,0))
+    axs[0].set_title("sample")
+    axs[1].plot(map1.transpose(1,0))
+    axs[1].set_title("map")
     axs.tight_layout()
     axs.show()
     print()
 
 
-def replace(inputs, maps, n_percentile=90, imp="most", approach="replaceWithZero"):
+def replace(inputs, maps, n_percentile=90, approach="replaceWithZero_most"):
+  repl, imp= approach.split('_')
   n_samples, n_channels, sample_lens = inputs.shape
   replaced_samples = []
-  for sample, map1 in tqdm(zip(inputs,maps), total=len(inputs), leave=False, desc=approach):
+  for sample, map1 in tqdm(zip(inputs,maps), total=len(inputs), leave=False, desc=repl):
     nth_percentile = np.percentile(map1,n_percentile)
-    if approach == "replaceWithZero":
+    if repl == "replaceWithZero":
       replaceWith = 0
       new_sample = np.where(map1 < nth_percentile, replaceWith, sample) if imp == "least" else np.where(map1 > nth_percentile, replaceWith, sample)
-    elif approach == "replaceWithMean":
+    elif repl == "replaceWithMean":
       replaceWith = np.array([np.mean(sample, axis=1),]*sample_lens).transpose()
       new_sample = np.where(map1 < nth_percentile, replaceWith, sample) if imp == "least" else np.where(map1 > nth_percentile, replaceWith, sample)
-    elif approach == "replaceWithInterp":
+    elif repl == "replaceWithInterp":
       nth_percentile = np.percentile(map1,n_percentile)
       imp_pts = np.where(map1 < nth_percentile) if imp == "least" else np.where(map1 > nth_percentile)
       new_sample = np.zeros(sample.shape)
@@ -145,7 +146,7 @@ def replace(inputs, maps, n_percentile=90, imp="most", approach="replaceWithZero
             vals.append(ch_vals[i])
             i += 1
         new_sample[channel] = vals
-    elif approach == "remove":
+    elif repl == "remove":
       imp_pts = np.where(map1 < nth_percentile) if imp == "least" else np.where(map1 > nth_percentile)
       new_sample = np.zeros(sample.shape)
       for channel in range(n_channels):
@@ -224,6 +225,7 @@ def visEval(params, accs):
   elif plot_paramKey2 == "perc":  plot_params2 = percs
   
   fig, axs = plt.subplots()
+  ys = []
   for i,plot_paramValue1 in enumerate(plot_params1):
     x = []; y = []
     for plot_paramValue2 in plot_params2:
@@ -242,8 +244,12 @@ def visEval(params, accs):
       n_bars = len(plot_params1)
       width = 0.6/(n_bars-1)
       axs.bar(np.arange(len(x))+width*(i-(n_bars-1)/2), y, width, label=plot_paramValue1)
+      ys.append(y)
     else:  
       axs.plot(range(len(x)), y, label=plot_paramValue1)
+  if isinstance(plot_params2[0], str):
+    min_y = np.min(ys)
+    axs.set_ylim(bottom=min_y-min_y/50)
   x = [baseline]*len(plot_params2)
   axs.plot(x, label="baseline", ls='--')
   plt.xticks(rotation=90)

@@ -34,6 +34,7 @@ def main(args):
                     "Wafer","Strawberry","TwoPatterns","Epilepsy","UWaveGestureLibraryAll"]
       else:
         datasets = args.gridEvalParams["datasets"]
+      gridEval_results = {}  
     elif args.visAttribParams is not None:
       datasets = args.visAttribParams["datasets"]    
     else:
@@ -64,8 +65,9 @@ def main(args):
         selectedInputs, selectedLabels = data_f.subsample(train_inputs, train_labels, args.n_samples)
       if args.gridEvalParams is not None:
         accs_dict = attribution_f.gridEval(model, selectedInputs, selectedLabels, args.gridEvalParams)
-        with open("results/%s_results.json"%(dataset),"w") as f:
+        with open("results/randomization_results/%s.json"%(dataset),"w") as f:
           json.dump(accs_dict,f)
+        gridEval_results[dataset] = accs_dict
       elif args.visAttribParams is not None:
         print("dataset:%s"%(dataset))
         attribution_f.visAttrib(model, selectedInputs, selectedLabels, args.visAttribParams)
@@ -75,6 +77,9 @@ def main(args):
       data=myfile.read()
     accs = json.loads(data)
     attribution_f.visEval(args.visEvalParams, accs)
+  if args.gridEvalParams is not None:
+    with open("results/randomization_results.json","w") as f:
+      json.dump(gridEval_results,f)
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser()
