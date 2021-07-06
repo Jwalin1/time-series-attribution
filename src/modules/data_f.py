@@ -1,303 +1,227 @@
-import numpy as np
-import matplotlib.pyplot as plt
 import os
+import numpy as np
 
-import warnings # to filter out warnings
-import torch    # for neural network
-from tqdm.auto import tqdm   # to track progress
+# to read data
+import pickle
+import zipfile
+import requests
+from scipy.io import arff
 
-# for attribution
-# https://captum.ai/api/attribution.html
-from captum.attr import Saliency, IntegratedGradients, InputXGradient, GuidedBackprop, LayerGradCam, GuidedGradCam, Lime
+# to track progress
+from tqdm.auto import tqdm
 
-# https://github.com/yiskw713/ScoreCAM
-from modules.cam import GradCAMpp, SmoothGradCAMpp, ScoreCAM
-# https://github.com/yiskw713/RISE
-from modules.rise import RISE
+# to create dataset and dataloaders
+from torch.utils.data import DataLoader, Dataset
 
-from modules.network_f import evaluate, randomize_layers
-from modules.data_f import createLoader, interpolate
-
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-from sklearn.exceptions import ConvergenceWarning
-warnings.filterwarnings("ignore", message="Using a non-full backward hook when the forward contains multiple autograd Nodes ")
-warnings.filterwarnings("ignore", message="Setting backward hooks on ReLU activations.")
-warnings.filterwarnings("ignore", category=ConvergenceWarning)
-
-captum_methods = ["Saliency", "IntegratedGradients", "InputXGradient", "GuidedBackprop", "LayerGradCam", "GuidedGradCam", "Lime"]
-yiskw713_methods = ["GradCAMpp", "SmoothGradCAMpp", "ScoreCAM", "RISE"]
-approaches = ["replaceWithZero_most", "replaceWithMean_most", "replaceWithInterp_most"]
-rand_layers = [0,-1,-2,-3]
-percs = [95,90,85,80]
-datasets = ["SyntheticAnomaly","CharacterTrajectories","FordA","ElectricDevices","Cricket",
-            "LargeKitchenAppliances","PhalangesOutlinesCorrect","NonInvasiveFetalECGThorax1",
-            "Wafer","Strawberry","TwoPatterns","Epilepsy","UWaveGestureLibraryAll"]
+# for splitting, standardizing and normalizing
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 
-def applyMethod(method, model, inputs):
-  if method in captum_methods[:-1]: # excluded Lime since it gives a warning when passing multiple inputs
-    maps = applyMethodBatch(method, model, inputs)
+np.random.seed(0)
+
+
+# download file from url
+def download_file(url,saveAs):
+  print("downloading file ",url)
+  if not os.path.exists(saveAs):
+    r = requests.get(url, allow_redirects=True)
+    open(saveAs, 'wb').write(r.content)
+    print("file downloaded")
   else:
-    maps = applyMethodSample(method, model, inputs)
+    print("file already exists")
 
-  maps = np.array(maps)
-  _, _, sample_len = inputs.shape
-  _, _, map_len = maps.shape
-  if sample_len != map_len:
-      maps = interpolate(maps,sample_len)
+# download file from url
+def extract_zip(path_to_zip_file, directory_to_extract_to):
+  if not os.path.exists(directory_to_extract_to):
+    with zipfile.ZipFile(path_to_zip_file, 'r') as zip_ref:
+      zip_ref.extractall(directory_to_extract_to)
+    print("folder extracted from zip")
+  else:
+    print("zip already extracted")
 
-  return maps
+def breakData(data):
+  inputs = []
+  labels = []
+  for sample in tqdm(data, leave=False, desc="processing"):
 
-def applyMethodBatch(method, model, inputs):
-  dummyLabels = [0]*len(inputs)
-  dataLoader = createLoader(inputs, dummyLabels)
-
-  model.eval()
-  maps = []
-  for i, (inputBatch,_) in enumerate(tqdm(dataLoader, leave=False, desc="eval")):
-    inputBatch = inputBatch.to(device).float().requires_grad_(True)
-    targetBatch = model(inputBatch).argmax(dim=1)
-
-    if method in ["LayerGradCam", "GuidedGradCam"] + ["GradCAMpp", "SmoothGradCAMpp", "ScoreCAM"]:
-      interpreter = globals()[method](model, model.features[-3])
-    elif method == "RISE":
-      interpreter = globals()[method](model, input_size=(inputBatch.shape[2]))
+    if isinstance(sample[0], np.ndarray):   # check if input has more than 1 channel
+      channels = [list(channel) for channel in sample[0]]  
+      inputs.append(channels)  
     else:
-      interpreter = globals()[method](model)
+      inputs.append([list(sample)[:-1]])
 
-    if method in ["GradCAMpp", "SmoothGradCAMpp", "ScoreCAM"]:
-      attribution, idx = interpreter(inputBatch)
-    elif method == "RISE":
-      attribution = interpreter(inputBatch)[targetBatch].view(1,1,-1)
-    else:
-      attribution = interpreter.attribute(inputBatch, target=targetBatch)
+    labels.append(sample[-1])
 
-    attribution = attribution.detach().cpu().numpy()
-    maps.extend(attribution)
-  return maps
+  inputs = np.nan_to_num(inputs)
+  try:  labels = np.array(labels, dtype=float)
+  except Exception: print("non numeric labels")
 
-def applyMethodSample(method, model, samples):
-  model.eval()
-  maps = []
-  for sample in tqdm(samples, leave=False, desc=method):
+  return inputs, labels
 
-    sample = torch.from_numpy(sample).to(device).unsqueeze(0)
-    sample = sample.float().requires_grad_(True)
-    target = model(sample).argmax(dim=1)[0]
-    if method in ["LayerGradCam", "GuidedGradCam"] + ["GradCAMpp", "SmoothGradCAMpp", "ScoreCAM"]:
-      interpreter = globals()[method](model, model.features[-3])
-    elif method == "RISE":
-      interpreter = globals()[method](model, input_size=(sample.shape[2]))
-    else:
-      interpreter = globals()[method](model)
+# http://www.timeseriesclassification.com/dataset.php
+def download_timeSeries(dataset):
+  fsource = "http://www.timeseriesclassification.com/Downloads/" + dataset + ".zip"
+  fname = dataset + ".zip"
+  download_file(url = fsource, saveAs = fname)
+  extract_zip(fname, dataset)
 
-    if method in ["GradCAMpp", "SmoothGradCAMpp", "ScoreCAM"]:
-      attribution, idx = interpreter(sample)
-    elif method == "RISE":
-      attribution = interpreter(sample)[target].view(1,1,-1)
-    else:
-      attribution = interpreter.attribute(sample, target=target)
+  data, meta = arff.loadarff("%s/%s_TRAIN.arff" % (dataset,dataset))
+  train_inputs, train_labels = breakData(data)
+  data, meta = arff.loadarff("%s/%s_TEST.arff" % (dataset,dataset))
+  test_inputs, test_labels = breakData(data)
 
-    attribution = attribution.squeeze(0).detach().cpu().numpy()
-    maps.append(attribution)
-  return maps
+  # adjust labels to begin from 0
+  oldLabels = list(np.unique(train_labels))
+  newLabels = np.arange(len(oldLabels))
+  # elementwise comparison fails when using np.where on byte'string' data so used list instead
+  train_labels = np.array([ newLabels[oldLabels.index(label)] for label in train_labels])
+  test_labels = np.array([ newLabels[oldLabels.index(label)] for label in test_labels])
 
-def visualizeMaps(inputs, maps):
-  for sample, map1 in zip(inputs,maps):
-    # Visualize the sample and the map
-    fig, axs = plt.subplots(2, 1, figsize=(5,10))
-    axs[0].plot(sample.transpose(1,0))
-    axs[0].set_title("sample")
-    axs[1].plot(map1.transpose(1,0))
-    axs[1].set_title("map")
-    axs.tight_layout()
-    axs.show()
-    print()
+  return train_inputs, train_labels, test_inputs, test_labels
 
 
-def replace(inputs, maps, n_percentile=90, approach="replaceWithZero_most"):
-  repl, imp= approach.split('_')
+def getRead_data(dataset):
+  curr_dir = os.getcwd()
+  if not os.path.exists("datasets"):
+    os.mkdir("datasets"); os.chdir("datasets")    # create a dir to store datasets
+  else:
+    os.chdir("datasets")
+  # get data
+  if dataset == "SyntheticAnomaly":
+    download_file(url = "https://drive.google.com/u/0/uc?id=1CdYxeX8g9wxzSnz6R51ELmJJuuZ3xlqa&export=download",
+                          saveAs = "anomaly_dataset.pickle")
+
+    infile = open("anomaly_dataset.pickle",'rb')
+    data = pickle.load(infile)
+    infile.close()
+
+    # read data
+    train_inputs, train_labels, test_inputs, test_labels = data
+    train_inputs = np.transpose(train_inputs, (0,2,1))
+    test_inputs = np.transpose(test_inputs, (0,2,1))
+
+  else:
+    train_inputs, train_labels, test_inputs, test_labels = download_timeSeries(dataset)
+
+    if dataset == "UWaveGestureLibraryAll":
+    # change shape from n,1,945 to n,3,315 as it is originally supposed to have 3 channels which can also be seen by plotting
+      train_inputs, test_inputs = train_inputs.reshape(-1,3,315), test_inputs.reshape(-1,3,315)
+
+  os.chdir(curr_dir)
+  train_inputs, scalers = standard_normal(train_inputs)
+  test_inputs, _ = standard_normal(test_inputs, scalers)
+  train_inputs, test_inputs = interpolate(train_inputs,500), interpolate(test_inputs,500)
+  return train_inputs, train_labels, test_inputs, test_labels
+
+
+
+def interpolate(inputs, new_size):
   n_samples, n_channels, sample_lens = inputs.shape
-  replaced_samples = []
-  for sample, map1 in tqdm(zip(inputs,maps), total=len(inputs), leave=False, desc=repl):
-    nth_percentile = np.percentile(map1,n_percentile)
-    if repl == "replaceWithZero":
-      replaceWith = 0
-      new_sample = np.where(map1 < nth_percentile, replaceWith, sample) if imp == "least" else np.where(map1 > nth_percentile, replaceWith, sample)
-    elif repl == "replaceWithMean":
-      replaceWith = np.array([np.mean(sample, axis=1),]*sample_lens).transpose()
-      new_sample = np.where(map1 < nth_percentile, replaceWith, sample) if imp == "least" else np.where(map1 > nth_percentile, replaceWith, sample)
-    elif repl == "replaceWithInterp":
-      nth_percentile = np.percentile(map1,n_percentile)
-      imp_pts = np.where(map1 < nth_percentile) if imp == "least" else np.where(map1 > nth_percentile)
-      new_sample = np.zeros(sample.shape)
-      for channel in range(n_channels):
-        indxs = imp_pts[1][imp_pts[0]==channel]
-        #indxs = [i for i in range(sample_lens) if i not in indxs]
-        vals = []
-        ch_vals = sample[channel]
-        i=0
-        while i in range(len(ch_vals)):
-          if i in indxs:
-            j=i+1
-            while j in indxs: j += 1
-            if i==0 and j==len(ch_vals)-1:  vals.extend([0]*(j-i))
-            elif i==0:                      vals.extend([ch_vals[j]]*(j-i))
-            elif j==len(ch_vals):         vals.extend([ch_vals[i-1]]*(j-i))
-            else: vals.extend(np.linspace(ch_vals[i-1], ch_vals[j], (j-i)))
-            i = j
-          else:
-            vals.append(ch_vals[i])
-            i += 1
-        new_sample[channel] = vals
-    elif repl == "remove":
-      imp_pts = np.where(map1 < nth_percentile) if imp == "least" else np.where(map1 > nth_percentile)
-      new_sample = np.zeros(sample.shape)
-      for channel in range(n_channels):
-        indxs = imp_pts[1][imp_pts[0]==channel]
-        indxs = [i for i in range(sample_lens) if i not in indxs]
-        vals = sample[channel][indxs]
-        new_sample[channel] = np.interp(np.linspace(0,len(vals)-1,sample_lens),range(len(vals)), vals)
+  new_inputs = np.zeros((n_samples,n_channels,new_size))
+  for sample in tqdm(range(n_samples), leave=False, desc="resizing"):
+    for channel in range(n_channels):
+      vals = inputs[sample,channel]
+      new_inputs[sample,channel] = np.interp(np.linspace(0,len(vals)-1,new_size),range(len(vals)), vals)
+  return new_inputs
 
-    replaced_samples.append(new_sample)
-  return np.array(replaced_samples)
+def standard_normal(inputs, scalers=None, standardize=True, normalize=False):
+  n_samples, n_channels, sample_lens = inputs.shape
+  if scalers is None:
+    scalers = {"standard" : [], "minmax" : []}
+  for c in range(n_channels):
 
-
-def gridEval(model, inputs, labels, params):
-  if "approaches" in params:  # else the global list of approaches will be used
-    approaches1 = params["approaches"]
-  else:
-    approaches1 = approaches  
-
-  if "methods" not in params:
-    methods = captum_methods + yiskw713_methods
-  else:
-    methods = params["methods"]
-
-  percs = params["percs"]
-  rand_layers = params["rand_layers"]
-
-
-  accs_randModel = {}
-  dataLoader = createLoader(inputs, labels)
-  # baseline accuracy
-  no_randomized = evaluate(model, dataLoader, output_dict=True)["accuracy"]
-  accs_randModel["no_randomized"] = no_randomized
-  for rand_layer in tqdm(rand_layers, leave=False, desc="randomized"):
-    # get model with last n layers randomized
-    rand_model = randomize_layers(model, rand_layer)
-    no_replace = evaluate(rand_model, dataLoader, output_dict=True)["accuracy"]
-
-    accs_attribMethods = {}
-    accs_attribMethods["no_replace"] = no_replace
-
-    for method in tqdm(methods, leave=False, desc="methods"):
-      accs_replaceApproach = {}
-      maps = applyMethod(method, rand_model, inputs)
-      for approach in tqdm(approaches1, leave=False, desc="approaches"):
-        accs = {}
-        for perc in tqdm(percs, leave=False, desc="percentile"):
-          replacedInputs = replace(inputs, maps, n_percentile=perc, approach=approach)
-          dataLoader1 = createLoader(replacedInputs, labels)
-          accs[perc] = evaluate(rand_model, dataLoader1, output_dict=True)["accuracy"]
-        accs_replaceApproach[approach] = accs
-      accs_attribMethods[method] = accs_replaceApproach
-    accs_randModel[rand_layer] = accs_attribMethods
-
-  return accs_randModel
-
-
-def visEval(params, accs, savefig):
-  datasets1 = params.pop('datasets', None)
-  if datasets1 is None: datasets1 = datasets
-  for dataset in datasets1:
-    params_list = ["dataset", "rand_layer", "method", "approach", "perc"]
-    params["dataset"] = dataset
-    methods = captum_methods + yiskw713_methods
-    plot_paramKeys = []
-    plot_title = ""
-    for param in params_list:
-      if params[param] is None:
-        plot_paramKeys.append(param)
-      else:
-        plot_title += param + ':' + params[param] + " "
-
-    plot_paramKey1, plot_paramKey2 = plot_paramKeys
-    if plot_paramKey1 == "method":  plot_params1 = methods
-    elif plot_paramKey1 == "approach":  plot_params1 = approaches
-    elif plot_paramKey1 == "rand_layer":  plot_params1 = rand_layers
-    elif plot_paramKey1 == "perc":  plot_params1 = percs
-    if plot_paramKey2 == "method":  plot_params2 = methods
-    elif plot_paramKey2 == "approach":  plot_params2 = approaches
-    elif plot_paramKey2 == "rand_layer":  plot_params2 = rand_layers
-    elif plot_paramKey2 == "perc":  plot_params2 = percs
+    if standardize:
+      if c == len(scalers["standard"]):
+        scaler = StandardScaler().fit(inputs[:,c,:])
+        scalers["standard"].append(scaler)
+      inputs[:,c,:] = scalers["standard"][c].transform(inputs[:,c,:])   # apply standardization before normalization
     
-    fig, axs = plt.subplots()
-    ys = []
-    for i,plot_paramValue1 in enumerate(plot_params1):
-      x = []; y = []
-      for plot_paramValue2 in plot_params2:
-        tmp_dict = accs
-        for param in params_list:
-          if plot_paramKey1 == param:
-            tmp_dict = tmp_dict[str(plot_paramValue1)]
-          elif plot_paramKey2 == param:
-            tmp_dict = tmp_dict[str(plot_paramValue2)]
-          else:
-            tmp_dict = tmp_dict[str(params[param])]
-          if type(tmp_dict) is dict and "no_randomized" in tmp_dict:
-            baseline = tmp_dict["no_randomized"]
-        x.append(plot_paramValue2);  y.append(tmp_dict)
-      if isinstance(plot_params2[0], str):
-        n_bars = len(plot_params1)
-        width = 0.6/(n_bars-1)
-        axs.bar(np.arange(len(x))+width*(i-(n_bars-1)/2), y, width, label=plot_paramValue1)
-        ys.append(y)
-      else:  
-        axs.plot(range(len(x)), y, label=plot_paramValue1)
-    if isinstance(plot_params2[0], str):
-      min_y = np.min(ys)
-      axs.set_ylim(bottom=min_y-min_y/50)
-    x = [baseline]*len(plot_params2)
-    axs.plot(x, label="baseline", ls='--')
-    plt.xticks(rotation=90)
-    axs.set_xticks(range(len(plot_params2)))
-    axs.set_xticklabels(plot_params2)
-    if axs.get_ylim()[1] > 1:  axs.set_ylim(top=1)
-    axs.set_ylabel("accuracy")
-    axs.set_xlabel(plot_paramKey2)
-    axs.set_title(plot_title)
-    axs.legend(title=plot_paramKey1,loc='center left', bbox_to_anchor= (1.0, 0.5))
+    if normalize:
+      if c == len(scalers["minmax"]):
+        scaler = MinMaxScaler(feature_range=(-1,1)).fit(inputs[:,c,:])
+        scalers["minmax"].append(scaler)    
+      inputs[:,c,:] = scalers["minmax"][c].transform(inputs[:,c,:])
 
-    if not savefig:
-      plt.show()
-    else:
-      savefig_dir = "results/plots/%s/" % (dataset)
-      if not os.path.exists(savefig_dir):
-        os.makedirs(savefig_dir)   # create a dir to store plots
-      fig_name = plot_title.replace(" ", "_")
-      plt.savefig(savefig_dir + fig_name +".png", bbox_inches='tight')
+  return inputs, scalers
+
+
+# create dataset and dataloaders
+class mydataset(Dataset):
+  def __init__(self, inputs, labels):
+    self.inputs = inputs
+    self.labels = labels
+
+  def __len__(self):
+    return len(self.inputs)
+
+  def __getitem__(self, index):
+    input = self.inputs[index]
+    label = self.labels[index]
+    return input,label
+
+# function to create train, val and test loaders
+def createLoaders(train_inputs, train_labels, test_inputs, test_labels, batch_size=32, val_percent=.25):
+  train_inputs, val_inputs, train_labels, val_labels = train_test_split(train_inputs, train_labels, test_size=val_percent, random_state=0)
+
+  train_dataset = mydataset(train_inputs, train_labels)
+  train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+
+  val_dataset = mydataset(val_inputs, val_labels)
+  val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+
+  test_dataset = mydataset(test_inputs, test_labels)
+  test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
+  dataloaders = {"train":train_loader, "val":val_loader, "test":test_loader}
+  return dataloaders
+
+def createLoader(inputs, labels, batch_size=64):
+  dataset = mydataset(inputs, labels)
+  loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+  return loader
+
+
+# function to select 'n' inputs distributed over the classes
+def subsample(inputs, labels, n):
+  tota_samples = (len(inputs))
+  classes = np.unique(labels)
+  selectedInputs = []
+  selectedLabels = []
+  for claSS in classes:
+    class_samples = inputs[labels==claSS]
+    class_labels = labels[labels==claSS]
+    class_percent = len(class_samples) / tota_samples
+    n_samples = round(n*class_percent)
+    selectedInputs.extend(class_samples[:n_samples])
+    selectedLabels.extend(class_labels[:n_samples])
+    print("class %d : %d samples" % (claSS, n_samples))
+  return np.array(selectedInputs), np.array(selectedLabels)
+
+# function to select 'n' inputs from each classes
+def subsample2(inputs, labels, n):
+  n_samples = n if n is not None else 1
+  tota_samples = (len(inputs))
+  classes = np.unique(labels)
+  selectedInputs = []
+  selectedLabels = []
+  for claSS in classes:
+    class_samples = inputs[labels==claSS]
+    class_labels = labels[labels==claSS]
+    selectedInputs.extend(class_samples[:n_samples])
+    selectedLabels.extend(class_labels[:n_samples])
+    print("class %d : %d samples" % (claSS, n_samples))
+  return np.array(selectedInputs), np.array(selectedLabels)  
+
+# functions to save and load the output of attribution methods
+def saveMaps(maps, method, dataset):
+  if not os.path.exists("maps"):
+    os.mkdir("maps");   # create a dir to store maps
+  outfile = "maps/" + dataset + '_' + method
+  np.save(outfile, maps)
   return
 
-def visAttrib(model, inputs, labels, params):
-  for input, label in zip(inputs, labels):
-    input = np.expand_dims(input, 0)
-    label = np.expand_dims(label, 0)    
-    for rand_layer in tqdm(params["rand_layers"], leave=False, desc="randomized"):
-      rand_model = randomize_layers(model, rand_layer)
-      for method in tqdm(params["methods"], leave=False, desc="methods"):
-        map1 = applyMethod(method, rand_model, input)
-        for approach in tqdm(params["approaches"], leave=False, desc="approaches"):
-          for perc in tqdm(params["percs"], leave=False, desc="percentile"):
-            fig, axs = axs.subplots(3)
-            print("rand_layer:%s, method:%s, approach:%s" % (rand_layer,method,approach))
-            replacedInput = replace(input, map1, n_percentile=perc, approach=approach)
-            dataLoader = createLoader(input, label)
-            pred_label = evaluate(rand_model, dataLoader, output_pred=True)[0].cpu().numpy()
-            dataLoader = createLoader(replacedInput, label)
-            pred_label1 = evaluate(rand_model, dataLoader, output_pred=True)[0].cpu().numpy()
-            print("correct label:%s, pred label:%s, pred label after replace:%s" % (label[0],pred_label,pred_label1))
-            axs[0].plot(input[0].transpose())
-            axs[1].plot(map1[0].transpose())
-            axs[2].plot(replacedInput[0].transpose())
-            axs.show()
+def loadMaps(method, dataset):
+  file = "maps/" + dataset + '_' + method + ".npy"
+  maps = np.load(file)
+  return maps
