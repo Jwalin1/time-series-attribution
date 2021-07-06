@@ -144,7 +144,7 @@ def evaluate(model, dataLoader, output_dict=False, output_pred=False):
 
 def save_state_dict(model, path):
   if not os.path.exists("models"):
-    os.mkdir("models");   # create a dir to store models
+    os.mkdir("models")   # create a dir to store models
 
   path = "models/" + path + ".pth"
   torch.save(model.state_dict(), path)

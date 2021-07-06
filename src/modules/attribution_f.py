@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 import warnings # to filter out warnings
 import torch    # for neural network
@@ -28,6 +29,9 @@ yiskw713_methods = ["GradCAMpp", "SmoothGradCAMpp", "ScoreCAM", "RISE"]
 approaches = ["replaceWithZero_most", "replaceWithMean_most", "replaceWithInterp_most"]
 rand_layers = [0,-1,-2,-3]
 percs = [95,90,85,80]
+datasets = ["SyntheticAnomaly","CharacterTrajectories","FordA","ElectricDevices","Cricket",
+            "LargeKitchenAppliances","PhalangesOutlinesCorrect","NonInvasiveFetalECGThorax1",
+            "Wafer","Strawberry","TwoPatterns","Epilepsy","UWaveGestureLibraryAll"]
 
 
 def applyMethod(method, model, inputs):
@@ -203,65 +207,79 @@ def gridEval(model, inputs, labels, params):
   return accs_randModel
 
 
-def visEval(params, accs):
-  params_list = ["dataset", "rand_layer", "method", "approach", "perc"]
-  methods = captum_methods + yiskw713_methods
-  plot_paramKeys = []
-  plot_title = ""
-  for param in params:
-    if params[param] is None:
-      plot_paramKeys.append(param)
-    else:
-      plot_title += param + ':' + params[param] + " "
-
-  plot_paramKey1, plot_paramKey2 = plot_paramKeys
-  if plot_paramKey1 == "method":  plot_params1 = methods
-  elif plot_paramKey1 == "approach":  plot_params1 = approaches
-  elif plot_paramKey1 == "rand_layer":  plot_params1 = rand_layers
-  elif plot_paramKey1 == "perc":  plot_params1 = percs
-  if plot_paramKey2 == "method":  plot_params2 = methods
-  elif plot_paramKey2 == "approach":  plot_params2 = approaches
-  elif plot_paramKey2 == "rand_layer":  plot_params2 = rand_layers
-  elif plot_paramKey2 == "perc":  plot_params2 = percs
-  
+def visEval(params, accs, savefig):
+  datasets1 = params.pop('datasets', None)
+  if datasets1 is None: datasets1 = datasets
   fig, axs = plt.subplots()
-  ys = []
-  for i,plot_paramValue1 in enumerate(plot_params1):
-    x = []; y = []
-    for plot_paramValue2 in plot_params2:
-      tmp_dict = accs
-      for param in params_list:
-        if plot_paramKey1 == param:
-          tmp_dict = tmp_dict[str(plot_paramValue1)]
-        elif plot_paramKey2 == param:
-          tmp_dict = tmp_dict[str(plot_paramValue2)]
-        else:
-          tmp_dict = tmp_dict[str(params[param])]
-        if type(tmp_dict) is dict and "no_randomized" in tmp_dict:
-          baseline = tmp_dict["no_randomized"]
-      x.append(plot_paramValue2);  y.append(tmp_dict)
-    if isinstance(plot_params2[0], str):
-      n_bars = len(plot_params1)
-      width = 0.6/(n_bars-1)
-      axs.bar(np.arange(len(x))+width*(i-(n_bars-1)/2), y, width, label=plot_paramValue1)
-      ys.append(y)
-    else:  
-      axs.plot(range(len(x)), y, label=plot_paramValue1)
-  if isinstance(plot_params2[0], str):
-    min_y = np.min(ys)
-    axs.set_ylim(bottom=min_y-min_y/50)
-  x = [baseline]*len(plot_params2)
-  axs.plot(x, label="baseline", ls='--')
-  plt.xticks(rotation=90)
-  axs.set_xticks(range(len(plot_params2)))
-  axs.set_xticklabels(plot_params2)
-  if axs.get_ylim()[1] > 1:  axs.set_ylim(top=1)
-  axs.set_ylabel("accuracy")
-  axs.set_xlabel(plot_paramKey2)
-  axs.set_title(plot_title)
-  axs.legend(title=plot_paramKey1,loc='center left', bbox_to_anchor= (1.0, 0.5))
+  for dataset in tqdm(datasets1, leave=False, desc="datasets"):
+    params_list = ["dataset", "rand_layer", "method", "approach", "perc"]
+    params["dataset"] = dataset
+    methods = captum_methods + yiskw713_methods
+    plot_paramKeys = []
+    plot_title = ""
+    for param in params:
+      if params[param] is None:
+        plot_paramKeys.append(param)
+    for param in params_list:    
+      plot_title += param + ':' + str(params[param]) + " "
+    plot_title = plot_title[:-1]
 
-  plt.show()
+    plot_paramKey1, plot_paramKey2 = plot_paramKeys
+    if plot_paramKey1 == "method":  plot_params1 = methods
+    elif plot_paramKey1 == "approach":  plot_params1 = approaches
+    elif plot_paramKey1 == "rand_layer":  plot_params1 = rand_layers
+    elif plot_paramKey1 == "perc":  plot_params1 = percs
+    if plot_paramKey2 == "method":  plot_params2 = methods
+    elif plot_paramKey2 == "approach":  plot_params2 = approaches
+    elif plot_paramKey2 == "rand_layer":  plot_params2 = rand_layers
+    elif plot_paramKey2 == "perc":  plot_params2 = percs
+    
+    ys = []
+    for i,plot_paramValue1 in enumerate(plot_params1):
+      x = []; y = []
+      for plot_paramValue2 in plot_params2:
+        tmp_dict = accs
+        for param in params_list:
+          if plot_paramKey1 == param:
+            tmp_dict = tmp_dict[str(plot_paramValue1)]
+          elif plot_paramKey2 == param:
+            tmp_dict = tmp_dict[str(plot_paramValue2)]
+          else:
+            tmp_dict = tmp_dict[str(params[param])]
+          if type(tmp_dict) is dict and "no_randomized" in tmp_dict:
+            baseline = tmp_dict["no_randomized"]
+        x.append(plot_paramValue2);  y.append(tmp_dict)
+      if isinstance(plot_params2[0], str):
+        n_bars = len(plot_params1)
+        width = 0.6/(n_bars-1)
+        axs.bar(np.arange(len(x))+width*(i-(n_bars-1)/2), y, width, label=plot_paramValue1)
+        ys.append(y)
+      else:  
+        axs.plot(range(len(x)), y, label=plot_paramValue1)
+    if isinstance(plot_params2[0], str):
+      min_y = np.min(ys)
+      axs.set_ylim(bottom=min_y-min_y/50)
+    x = [baseline]*len(plot_params2)
+    axs.plot(x, label="baseline", ls='--')
+    plt.xticks(rotation=90)
+    axs.set_xticks(range(len(plot_params2)))
+    axs.set_xticklabels(plot_params2)
+    if axs.get_ylim()[1] > 1:  axs.set_ylim(top=1)
+    axs.set_ylabel("accuracy")
+    axs.set_xlabel(plot_paramKey2)
+    axs.set_title(plot_title)
+    axs.legend(title=plot_paramKey1,loc='center left', bbox_to_anchor= (1.0, 0.5))
+
+    if not savefig:
+      plt.show()
+    else:
+      savefig_dir = "results/plots/%s/" % (dataset)
+      if not os.path.exists(savefig_dir):
+        os.makedirs(savefig_dir)   # create a dir to store plots
+      fig_name = plot_title.replace(" ", "_")
+      plt.savefig(savefig_dir + fig_name +".png", bbox_inches='tight')
+    plt.cla()
+  plt.close(fig)  
   return
 
 def visAttrib(model, inputs, labels, params):

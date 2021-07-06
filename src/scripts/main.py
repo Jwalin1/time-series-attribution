@@ -76,7 +76,7 @@ def main(args):
     with open("results/randomization_results.json", 'r') as myfile:
       data=myfile.read()
     accs = json.loads(data)
-    attribution_f.visEval(args.visEvalParams, accs)
+    attribution_f.visEval(args.visEvalParams, accs, args.save)
   if args.gridEvalParams is not None:
     with open("results/randomization_results.json","w") as f:
       json.dump(gridEval_results,f)
