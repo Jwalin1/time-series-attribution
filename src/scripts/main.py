@@ -12,6 +12,7 @@ sys.path.append("../")
 
 # import modules
 from modules import data_f, network_f, network_architectures, attribution_f
+print(network_f.device)
 
 # reload module
 import importlib

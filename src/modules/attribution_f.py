@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+from collections import OrderedDict
 
 import warnings # to filter out warnings
 import torch    # for neural network
@@ -208,19 +209,20 @@ def gridEval(model, inputs, labels, params):
 
 
 def visEval(params, accs, savefig):
+  params = OrderedDict(params)
   datasets1 = params.pop('datasets', None)
   if datasets1 is None: datasets1 = datasets
   fig, axs = plt.subplots()
   for dataset in tqdm(datasets1, leave=False, desc="datasets"):
     params_list = ["dataset", "rand_layer", "method", "approach", "perc"]
     params["dataset"] = dataset
+    params.move_to_end("dataset", last=False)
     methods = captum_methods + yiskw713_methods
     plot_paramKeys = []
     plot_title = ""
     for param in params:
       if params[param] is None:
         plot_paramKeys.append(param)
-    for param in params_list:    
       plot_title += param + ':' + str(params[param]) + " "
     plot_title = plot_title[:-1]
 
