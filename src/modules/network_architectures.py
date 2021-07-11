@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+# 1D AlexNet network class definition
 class AlexNet(nn.Module):
 
   def __init__(self, num_classes:int=2, inp_channels:int=3) -> None:

@@ -154,7 +154,7 @@ def load_state_dict(model, path):
 
 
 
-
+# function to get flattened list of trainable layers
 def get_children(model: torch.nn.Module):
   # get children form model!
   children = list(model.children())

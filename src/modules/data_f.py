@@ -105,12 +105,13 @@ def getRead_data(dataset):
     train_inputs, train_labels, test_inputs, test_labels = download_timeSeries(dataset)
 
     if dataset == "UWaveGestureLibraryAll":
-    # change shape from n,1,945 to n,3,315 as it is originally supposed to have 3 channels which can also be seen by plotting
+    # change shape from n,1,945 to n,3,315 as it is originally supposed to have 3 channels 
+    # correspding to x,y,z acceleration axis (https://www.sciencedirect.com/science/article/pii/S1574119209000674)
       train_inputs, test_inputs = train_inputs.reshape(-1,3,315), test_inputs.reshape(-1,3,315)
 
   os.chdir(curr_dir)
-  train_inputs, scalers = standard_normal(train_inputs)
-  test_inputs, _ = standard_normal(test_inputs, scalers)
+  train_inputs, scalers = standard_normal(train_inputs, normalize=False):
+  test_inputs, _ = standard_normal(test_inputs, scalers, normalize=False):
   train_inputs, test_inputs = interpolate(train_inputs,500), interpolate(test_inputs,500)
   return train_inputs, train_labels, test_inputs, test_labels
 
@@ -125,7 +126,7 @@ def interpolate(inputs, new_size):
       new_inputs[sample,channel] = np.interp(np.linspace(0,len(vals)-1,new_size),range(len(vals)), vals)
   return new_inputs
 
-def standard_normal(inputs, scalers=None, standardize=True, normalize=False):
+def standard_normal(inputs, scalers=None, standardize=True, normalize=True):
   n_samples, n_channels, sample_lens = inputs.shape
   if scalers is None:
     scalers = {"standard" : [], "minmax" : []}
@@ -184,14 +185,14 @@ def createLoader(inputs, labels, batch_size=64):
 
 # function to select 'n' inputs distributed over the classes
 def subsample(inputs, labels, n):
-  tota_samples = (len(inputs))
+  total_samples = (len(inputs))
   classes = np.unique(labels)
   selectedInputs = []
   selectedLabels = []
   for claSS in classes:
     class_samples = inputs[labels==claSS]
     class_labels = labels[labels==claSS]
-    class_percent = len(class_samples) / tota_samples
+    class_percent = len(class_samples) / total_samples
     n_samples = round(n*class_percent)
     selectedInputs.extend(class_samples[:n_samples])
     selectedLabels.extend(class_labels[:n_samples])
@@ -201,7 +202,6 @@ def subsample(inputs, labels, n):
 # function to select 'n' inputs from each classes
 def subsample2(inputs, labels, n):
   n_samples = n if n is not None else 1
-  tota_samples = (len(inputs))
   classes = np.unique(labels)
   selectedInputs = []
   selectedLabels = []

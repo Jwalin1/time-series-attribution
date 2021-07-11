@@ -35,7 +35,9 @@ datasets = ["SyntheticAnomaly","CharacterTrajectories","FordA","ElectricDevices"
             "Wafer","Strawberry","TwoPatterns","Epilepsy","UWaveGestureLibraryAll"]
 
 
+# function to apply attribution method and return maps
 def applyMethod(method, model, inputs):
+  # only captum methods support passing multiple inputs at a time
   if method in captum_methods[:-1]: # excluded Lime since it gives a warning when passing multiple inputs
     maps = applyMethodBatch(method, model, inputs)
   else:
@@ -116,16 +118,17 @@ def visualizeMaps(inputs, maps):
     print()
 
 
+# function to replace most/least important points based on percentile
 def replace(inputs, maps, n_percentile=90, approach="replaceWithZero_most"):
   repl, imp= approach.split('_')
   n_samples, n_channels, sample_lens = inputs.shape
   replaced_samples = []
   for sample, map1 in tqdm(zip(inputs,maps), total=len(inputs), leave=False, desc=repl):
     nth_percentile = np.percentile(map1,n_percentile)
-    if repl == "replaceWithZero":
+    if repl == "replaceWithZero": # simply replace the point with 0
       replaceWith = 0
       new_sample = np.where(map1 < nth_percentile, replaceWith, sample) if imp == "least" else np.where(map1 > nth_percentile, replaceWith, sample)
-    elif repl == "replaceWithMean":
+    elif repl == "replaceWithMean": # replace the point with the channel mean
       replaceWith = np.array([np.mean(sample, axis=1),]*sample_lens).transpose()
       new_sample = np.where(map1 < nth_percentile, replaceWith, sample) if imp == "least" else np.where(map1 > nth_percentile, replaceWith, sample)
     elif repl == "replaceWithInterp":
@@ -142,16 +145,16 @@ def replace(inputs, maps, n_percentile=90, approach="replaceWithZero_most"):
           if i in indxs:
             j=i+1
             while j in indxs: j += 1
-            if i==0 and j==len(ch_vals)-1:  vals.extend([0]*(j-i))
-            elif i==0:                      vals.extend([ch_vals[j]]*(j-i))
-            elif j==len(ch_vals):         vals.extend([ch_vals[i-1]]*(j-i))
-            else: vals.extend(np.linspace(ch_vals[i-1], ch_vals[j], (j-i)))
+            if i==0 and j==len(ch_vals)-1:  vals.extend([0]*(j-i))  # all points to be replaced
+            elif i==0:                      vals.extend([ch_vals[j]]*(j-i)) # initial point to be replaced as well
+            elif j==len(ch_vals):         vals.extend([ch_vals[i-1]]*(j-i)) # last point to be replaced as well
+            else: vals.extend(np.linspace(ch_vals[i-1], ch_vals[j], (j-i))) # replace intermediate point
             i = j
           else:
             vals.append(ch_vals[i])
             i += 1
         new_sample[channel] = vals
-    elif repl == "remove":
+    elif repl == "remove":  # remove the points and match the sample to be of the original size
       imp_pts = np.where(map1 < nth_percentile) if imp == "least" else np.where(map1 > nth_percentile)
       new_sample = np.zeros(sample.shape)
       for channel in range(n_channels):
@@ -164,6 +167,7 @@ def replace(inputs, maps, n_percentile=90, approach="replaceWithZero_most"):
   return np.array(replaced_samples)
 
 
+# function to evaluate all param combinations and return a nested dict of accuracies
 def gridEval(model, inputs, labels, params):
   if "approaches" in params:  # else the global list of approaches will be used
     approaches1 = params["approaches"]
@@ -208,6 +212,7 @@ def gridEval(model, inputs, labels, params):
   return accs_randModel
 
 
+# function to visualize the results of evaluation
 def visEval(params, accs, savefig):
   params = OrderedDict(params)
   datasets1 = params.pop('datasets', None)
@@ -216,10 +221,13 @@ def visEval(params, accs, savefig):
   for dataset in tqdm(datasets1, leave=False, desc="datasets"):
     params_list = ["dataset", "rand_layer", "method", "approach", "perc"]
     params["dataset"] = dataset
+
+    # to ensure "dataset" is at the beginning of title
     params.move_to_end("dataset", last=False)
     methods = captum_methods + yiskw713_methods
     plot_paramKeys = []
     plot_title = ""
+    # form the title and get the keys to plot
     for param in params:
       if params[param] is None:
         plot_paramKeys.append(param)
@@ -251,6 +259,7 @@ def visEval(params, accs, savefig):
           if type(tmp_dict) is dict and "no_randomized" in tmp_dict:
             baseline = tmp_dict["no_randomized"]
         x.append(plot_paramValue2);  y.append(tmp_dict)
+      # use bar chart if x axis data is string else line chart
       if isinstance(plot_params2[0], str):
         n_bars = len(plot_params1)
         width = 0.6/(n_bars-1)
@@ -258,6 +267,7 @@ def visEval(params, accs, savefig):
         ys.append(y)
       else:  
         axs.plot(range(len(x)), y, label=plot_paramValue1)
+    # elevate bottom ylim to see differences more clearly
     if isinstance(plot_params2[0], str):
       min_y = np.min(ys)
       axs.set_ylim(bottom=min_y-min_y/50)
