@@ -110,8 +110,8 @@ def getRead_data(dataset):
       train_inputs, test_inputs = train_inputs.reshape(-1,3,315), test_inputs.reshape(-1,3,315)
 
   os.chdir(curr_dir)
-  train_inputs, scalers = standard_normal(train_inputs, normalize=False):
-  test_inputs, _ = standard_normal(test_inputs, scalers, normalize=False):
+  train_inputs, scalers = standard_normal(train_inputs, normalize=False)
+  test_inputs, _ = standard_normal(test_inputs, scalers, normalize=False)
   train_inputs, test_inputs = interpolate(train_inputs,500), interpolate(test_inputs,500)
   return train_inputs, train_labels, test_inputs, test_labels
 

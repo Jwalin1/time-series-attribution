@@ -268,15 +268,18 @@ def visEval(params, accs, savefig):
       else:  
         axs.plot(range(len(x)), y, label=plot_paramValue1)
     # elevate bottom ylim to see differences more clearly
-    if isinstance(plot_params2[0], str):
+        if isinstance(plot_params2[0], str):
       min_y = np.min(ys)
-      axs.set_ylim(bottom=min_y-min_y/50)
-    x = [baseline]*len(plot_params2)
-    axs.plot(x, label="baseline", ls='--')
+      axs.set_ylim(bottom=min_y-min_y/50)       
     plt.xticks(rotation=90)
     axs.set_xticks(range(len(plot_params2)))
     axs.set_xticklabels(plot_params2)
-    if axs.get_ylim()[1] > 1:  axs.set_ylim(top=1)
+    bottom, top = axs.get_ylim()
+    if top >= baseline*0.8:
+      x = [baseline]*len(plot_params2)
+      axs.plot(x, label="baseline", ls='--')
+      diff = top - bottom
+      axs.set_ylim(top=baseline + diff/20)
     axs.set_ylabel("accuracy")
     axs.set_xlabel(plot_paramKey2)
     axs.set_title(plot_title)

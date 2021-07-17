@@ -1,0 +1,63 @@
+1) gridEvalParams is passed as a dict of parameters for grid evaluation.
+params include : datasets, percs, rand_layers, methods, approaches
+
+default values are:
+datasets = ["SyntheticAnomaly","CharacterTrajectories","FordA","ElectricDevices","Cricket",
+            "LargeKitchenAppliances","PhalangesOutlinesCorrect","NonInvasiveFetalECGThorax1",
+            "Wafer","Strawberry","TwoPatterns","Epilepsy","UWaveGestureLibraryAll"]
+
+approaches = ["replaceWithZero_most", "replaceWithMean_most", "replaceWithInterp_most"]
+
+methods = ["Saliency", "IntegratedGradients", "InputXGradient", "GuidedBackprop", "LayerGradCam", "GuidedGradCam", "Lime",
+           "GradCAMpp", "SmoothGradCAMpp", "ScoreCAM", "RISE"]            
+
+
+example command:
+
+python main.py  --gridEvalParams '{"percs":[95,90,85,80], "rand_layers":[0,-1,-2,-3]'} \
+                --load True \
+                --n_samples 1000
+
+
+Here the --load arg indicates to use a pretrained model, 
+if it is not true then a model will be trained from scratch and saved if --save True.
+--n_samples indicates the number of stratified samples to be selected from each dataset.
+
+
+
+2) visEvalParams is passed as a dict of parameters for visualizing evaluation.
+This utilizes randomization_results.json present in the results folder, generated
+as the result of gridEval.
+params include : datasets, perc, rand_layer, method, approach
+Two params should be None.
+1st None param would serve as param for multiple lines/bars.
+2nd None param would serve as param for the x axis.
+
+example command
+
+%run ../scripts/main.py  --visEvalParams '{"datasets":["CharacterTrajectories"], \
+                                            "rand_layer":"0", \
+                                            "approach":None, \
+                                            "perc":80,  \
+                                            "method":None, \
+                                            }'  \
+
+
+3) visAttribParams is passed as a dict of parameters for visualizing evaluation.
+Used to visualize plot with 3 subplots : sample, attribution map, sample with important points replaced
+
+
+example command
+
+%run ../scripts/main.py  --visAttribParams '{"datasets":["SyntheticAnomaly", "FordA"], \
+                                            "rand_layers":[0,-1], \
+                                            "methods":["Saliency", "LayerGradCam"], \
+                                            "approaches":["replaceWithMean", "replaceWithInterp"], \
+                                            "percs":[99,98] \
+                                            }'  \
+                         --load True  \
+
+Here the --load arg indicates to use a pretrained model, 
+if it is not true then a model will be trained from scratch and saved if --save True.
+It will pick --n_samples from each class, if it is not provided then it will pick 
+one sample from each class.
