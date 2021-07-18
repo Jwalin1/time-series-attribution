@@ -268,7 +268,7 @@ def visEval(params, accs, savefig):
       else:  
         axs.plot(range(len(x)), y, label=plot_paramValue1)
     # elevate bottom ylim to see differences more clearly
-        if isinstance(plot_params2[0], str):
+    if isinstance(plot_params2[0], str):
       min_y = np.min(ys)
       axs.set_ylim(bottom=min_y-min_y/50)       
     plt.xticks(rotation=90)
