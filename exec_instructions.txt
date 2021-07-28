@@ -43,6 +43,11 @@ example command
                                             }'  \
 
 
+code to save all plots for all param combinations can be found at : 
+https://git.opendfki.de/mercier/time-series-attribution/-/blob/master/src/notebooks/savePlots.ipynb
+
+
+
 3) visAttribParams is passed as a dict of parameters for visualizing evaluation.
 Used to visualize plot with 3 subplots : sample, attribution map, sample with important points replaced
 

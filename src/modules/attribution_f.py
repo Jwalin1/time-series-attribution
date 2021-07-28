@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 from collections import OrderedDict
+from scipy import stats
 
 import warnings # to filter out warnings
 import torch    # for neural network
@@ -186,15 +187,21 @@ def gridEval(model, inputs, labels, params):
   accs_randModel = {}
   dataLoader = createLoader(inputs, labels)
   # baseline accuracy
-  no_randomized = evaluate(model, dataLoader, output_dict=True)["accuracy"]
-  accs_randModel["no_randomized"] = no_randomized
+  no_randomized, no_randomized_preds = evaluate(model, dataLoader, output_dict=True, output_pred=True)
+  accs_randModel["no_randomized_acc"] = no_randomized["accuracy"]
+  accs_randModel["no_randomized_macroAvgF1"] = no_randomized["macro avg"]['f1-score']
+  accs_randModel["no_randomized_weightedAvgF1"] = no_randomized["weighted avg"]['f1-score']
   for rand_layer in tqdm(rand_layers, leave=False, desc="randomized"):
     # get model with last n layers randomized
     rand_model = randomize_layers(model, rand_layer)
-    no_replace = evaluate(rand_model, dataLoader, output_dict=True)["accuracy"]
+    no_replace, no_replace_preds = evaluate(rand_model, dataLoader, output_dict=True, output_pred=True)
 
     accs_attribMethods = {}
-    accs_attribMethods["no_replace"] = no_replace
+    accs_attribMethods["no_replace_acc"] = no_replace["accuracy"]
+    accs_attribMethods["no_replace_macroAvgF1"] = no_replace["macro avg"]['f1-score']
+    accs_attribMethods["no_replace_weightedAvgF1"] = no_replace["weighted avg"]['f1-score']
+    # correlation between baseline and randomized
+    accs_attribMethods["no_replace_spearmanCorr"] = stats.spearmanr(no_randomized_preds,no_replace_preds)[0]
 
     for method in tqdm(methods, leave=False, desc="methods"):
       accs_replaceApproach = {}
@@ -204,7 +211,12 @@ def gridEval(model, inputs, labels, params):
         for perc in tqdm(percs, leave=False, desc="percentile"):
           replacedInputs = replace(inputs, maps, n_percentile=perc, approach=approach)
           dataLoader1 = createLoader(replacedInputs, labels)
-          accs[perc] = evaluate(rand_model, dataLoader1, output_dict=True)["accuracy"]
+          perc_dict, perc_preds = evaluate(rand_model, dataLoader1, output_dict=True, output_pred=True)
+          accs[str(perc)+"_acc"] = perc_dict["accuracy"]
+          accs[str(perc)+"_macroAvgF1"] = perc_dict["macro avg"]['f1-score']
+          accs[str(perc)+"_weightedAvgF1"] = perc_dict["weighted avg"]['f1-score']
+          # correlation between baseline and randomized with imp points replaced
+          accs[str(perc)+"_spearmanCorr"] = stats.spearmanr(no_randomized_preds,perc_preds)[0]
         accs_replaceApproach[approach] = accs
       accs_attribMethods[method] = accs_replaceApproach
     accs_randModel[rand_layer] = accs_attribMethods
@@ -215,7 +227,7 @@ def gridEval(model, inputs, labels, params):
 # function to visualize the results of evaluation
 def visEval(params, accs, savefig):
   params = OrderedDict(params)
-  datasets1 = params.pop('datasets', None)
+  datasets1 = params.pop("datasets", None)
   if datasets1 is None: datasets1 = datasets
   fig, axs = plt.subplots()
   for dataset in tqdm(datasets1, leave=False, desc="datasets"):
@@ -256,8 +268,8 @@ def visEval(params, accs, savefig):
             tmp_dict = tmp_dict[str(plot_paramValue2)]
           else:
             tmp_dict = tmp_dict[str(params[param])]
-          if type(tmp_dict) is dict and "no_randomized" in tmp_dict:
-            baseline = tmp_dict["no_randomized"]
+          if type(tmp_dict) is dict and "no_randomized_acc" in tmp_dict:
+            baseline = tmp_dict["no_randomized_acc"]
         x.append(plot_paramValue2);  y.append(tmp_dict)
       # use bar chart if x axis data is string else line chart
       if isinstance(plot_params2[0], str):
