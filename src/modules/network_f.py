@@ -135,10 +135,7 @@ def evaluate(model, dataLoader, output_dict=False, output_pred=False):
       outPred.extend(outPredBatch.cpu())
 
   if output_pred:
-    if output_dict:
-      return classification_report(outTrue, outPred, digits=4, output_dict=output_dict, zero_division=0), outPred
-    else:  
-      return outPred
+    return outPred
   else:  
     return classification_report(outTrue, outPred, digits=4, output_dict=output_dict, zero_division=0)
 

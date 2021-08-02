@@ -196,7 +196,7 @@ def subsample(inputs, labels, n):
     n_samples = round(n*class_percent)
     selectedInputs.extend(class_samples[:n_samples])
     selectedLabels.extend(class_labels[:n_samples])
-    print("class %d : %d samples" % (claSS, n_samples))
+    #print("class %d : %d samples" % (claSS, n_samples))
   return np.array(selectedInputs), np.array(selectedLabels)
 
 # function to select 'n' inputs from each classes
@@ -210,7 +210,7 @@ def subsample2(inputs, labels, n):
     class_labels = labels[labels==claSS]
     selectedInputs.extend(class_samples[:n_samples])
     selectedLabels.extend(class_labels[:n_samples])
-    print("class %d : %d samples" % (claSS, n_samples))
+    #print("class %d : %d samples" % (claSS, n_samples))
   return np.array(selectedInputs), np.array(selectedLabels)  
 
 # functions to save and load the output of attribution methods
