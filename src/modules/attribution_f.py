@@ -25,6 +25,7 @@ from sklearn.exceptions import ConvergenceWarning
 warnings.filterwarnings("ignore", message="Using a non-full backward hook when the forward contains multiple autograd Nodes ")
 warnings.filterwarnings("ignore", message="Setting backward hooks on ReLU activations.")
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
+np.seterr(divide='ignore', invalid='ignore')
 
 captum_methods = ["Saliency", "IntegratedGradients", "InputXGradient", "GuidedBackprop", "LayerGradCam", "GuidedGradCam", "Lime"]
 yiskw713_methods = ["GradCAMpp", "SmoothGradCAMpp", "ScoreCAM", "RISE"]
@@ -187,6 +188,7 @@ def gridEval(model, inputs, labels, params):
   # compute original attribution maps for comparison with randomized
   maps_original = {}
   for method in tqdm(methods, leave=False, desc="original attribution maps"):
+    np.random.seed(0)
     maps_original[method] = applyMethod(method, model, inputs)
 
   accs_randModel = {}
@@ -209,6 +211,7 @@ def gridEval(model, inputs, labels, params):
     for method in tqdm(methods, leave=False, desc="methods"):
       accs_replaceApproach = {}
       # correlation between attribution map of original and replaced model
+      np.random.seed(0)
       maps_randomized = applyMethod(method, rand_model, inputs)
       accs_replaceApproach["spearmanCorr"] = stats.spearmanr(maps_original[method].flatten(), maps_randomized.flatten())[0]
 

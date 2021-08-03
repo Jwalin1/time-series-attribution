@@ -12,11 +12,19 @@ methods = ["Saliency", "IntegratedGradients", "InputXGradient", "GuidedBackprop"
            "GradCAMpp", "SmoothGradCAMpp", "ScoreCAM", "RISE"]            
 
 
-example command:
+example commands:
 
 python main.py  --gridEvalParams '{"percs":[95,90,85,80], "rand_layers":[0,-1,-2,-3]'} \
                 --load True \
                 --n_samples 1000
+                
+python main.py  --gridEvalParams '{"datasets":["CharacterTrajectories"], \
+                                    "percs":[95],  \
+                                    "rand_layers":[0], \
+                                    "approaches" : ["replaceWithZero_most"], \
+                                    "methods" : ["Saliency"] }' \
+                                  --load True \
+                                  --n_samples 1000
 
 
 Here the --load arg indicates to use a pretrained model, 
