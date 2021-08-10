@@ -214,8 +214,15 @@ def gridEval(model, inputs, labels, params):
       # correlation between attribution map of original and replaced model
       np.random.seed(0)
       torch.manual_seed(0)
+
       maps_randomized = applyMethod(method, rand_model, inputs)
-      accs_replaceApproach["spearmanCorr"] = stats.spearmanr(maps_original[method].flatten(), maps_randomized.flatten())[0]
+      spearmanCorrs = {}
+      for method1 in maps_original:
+        # compare after taking mean of channels
+        spearmanCorrs[method1] = stats.spearmanr(np.mean(maps_original[method1],axis=1).flatten(), np.mean(maps_randomized,axis=1).flatten())[0]
+        # compare after taking max of channels
+        #spearmanCorrs[method1] = stats.spearmanr(np.mean(maps_original[method1],axis=1).flatten(), np.mean(maps_randomized,axis=1).flatten())[0]
+      accs_replaceApproach["spearmanCorr"] = spearmanCorrs
 
       for approach in tqdm(approaches1, leave=False, desc="approaches"):
         accs = {}
