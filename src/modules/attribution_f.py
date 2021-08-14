@@ -25,6 +25,7 @@ from sklearn.exceptions import ConvergenceWarning
 warnings.filterwarnings("ignore", message="Using a non-full backward hook when the forward contains multiple autograd Nodes ")
 warnings.filterwarnings("ignore", message="Setting backward hooks on ReLU activations.")
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
+warnings.filterwarnings("ignore", message="An input array is constant; the correlation coefficent is not defined.")
 np.seterr(divide='ignore', invalid='ignore')
 
 captum_methods = ["Saliency", "IntegratedGradients", "InputXGradient", "GuidedBackprop", "LayerGradCam", "GuidedGradCam", "Lime"]
@@ -217,12 +218,17 @@ def gridEval(model, inputs, labels, params):
 
       maps_randomized = applyMethod(method, rand_model, inputs)
       spearmanCorrs = {}
+      pearsonCorrs = {}
       for method1 in maps_original:
-        # compare after taking mean of channels
-        spearmanCorrs[method1] = stats.spearmanr(np.mean(maps_original[method1],axis=1).flatten(), np.mean(maps_randomized,axis=1).flatten())[0]
-        # compare after taking max of channels
-        #spearmanCorrs[method1] = stats.spearmanr(np.mean(maps_original[method1],axis=1).flatten(), np.mean(maps_randomized,axis=1).flatten())[0]
+        if np.isfinite(maps_randomized).all() and np.isfinite(maps_original[method1]).all():
+          # compare after taking mean of channels
+          spearmanCorrs[method1] = stats.spearmanr(np.mean(maps_original[method1],axis=1).flatten(), np.mean(maps_randomized,axis=1).flatten())[0]
+          pearsonCorrs[method1] = stats.pearsonr(np.mean(maps_original[method1],axis=1).flatten(), np.mean(maps_randomized,axis=1).flatten())[0]
+          # compare after taking max of channels
+          #spearmanCorrs[method1] = stats.spearmanr(np.mean(maps_original[method1],axis=1).flatten(), np.mean(maps_randomized,axis=1).flatten())[0]
+          #pearsonCorrs[method1] = stats.pearsonr(np.mean(maps_original[method1],axis=1).flatten(), np.mean(maps_randomized,axis=1).flatten())[0]
       accs_replaceApproach["spearmanCorr"] = spearmanCorrs
+      accs_replaceApproach["pearsonCorr"] = pearsonCorrs
 
       for approach in tqdm(approaches1, leave=False, desc="approaches"):
         accs = {}
