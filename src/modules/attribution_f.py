@@ -50,7 +50,7 @@ def applyMethod(method, model, inputs):
   _, _, sample_len = inputs.shape
   _, _, map_len = maps.shape
   if sample_len != map_len:
-      maps = interpolate(maps,sample_len)
+    maps = interpolate(maps,sample_len)
 
   return maps
 
