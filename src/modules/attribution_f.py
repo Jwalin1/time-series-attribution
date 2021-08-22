@@ -122,11 +122,17 @@ def visualizeMaps(inputs, maps):
 
 
 # function to replace most/least important points based on percentile
-def replace(inputs, maps, n_percentile=90, approach="replaceWithZero_most"):
+def replace(inputs, maps, n_percentile=90, approach="replaceWithZero_most", reduce_channel=False):
   repl, imp= approach.split('_')
   n_samples, n_channels, sample_lens = inputs.shape
   replaced_samples = []
   for sample, map1 in tqdm(zip(inputs,maps), total=len(inputs), leave=False, desc=repl):
+
+    if reduce_channel == "mean":
+      map1 = np.mean(map1,axis=0, keepdims=True)
+    elif reduce_channel == "max":
+      map1 = np.max(map1,axis=0, keepdims=True)
+
     nth_percentile = np.percentile(map1,n_percentile)
     if repl == "replaceWithZero": # simply replace the point with 0
       replaceWith = 0
@@ -225,8 +231,8 @@ def gridEval(model, inputs, labels, params):
           spearmanCorrs[method1] = stats.spearmanr(np.mean(maps_original[method1],axis=1).flatten(), np.mean(maps_randomized,axis=1).flatten())[0]
           pearsonCorrs[method1] = stats.pearsonr(np.mean(maps_original[method1],axis=1).flatten(), np.mean(maps_randomized,axis=1).flatten())[0]
           # compare after taking max of channels
-          #spearmanCorrs[method1] = stats.spearmanr(np.mean(maps_original[method1],axis=1).flatten(), np.mean(maps_randomized,axis=1).flatten())[0]
-          #pearsonCorrs[method1] = stats.pearsonr(np.mean(maps_original[method1],axis=1).flatten(), np.mean(maps_randomized,axis=1).flatten())[0]
+          #spearmanCorrs[method1] = stats.spearmanr(np.max(maps_original[method1],axis=1).flatten(), np.max(maps_randomized,axis=1).flatten())[0]
+          #pearsonCorrs[method1] = stats.pearsonr(np.max(maps_original[method1],axis=1).flatten(), np.max(maps_randomized,axis=1).flatten())[0]
       accs_replaceApproach["spearmanCorr"] = spearmanCorrs
       accs_replaceApproach["pearsonCorr"] = pearsonCorrs
 

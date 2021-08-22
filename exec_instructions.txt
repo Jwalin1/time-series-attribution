@@ -23,8 +23,8 @@ python main.py  --gridEvalParams '{"datasets":["CharacterTrajectories"], \
                                     "rand_layers":[0], \
                                     "approaches" : ["replaceWithZero_most"], \
                                     "methods" : ["Saliency"] }' \
-                                  --load True \
-                                  --n_samples 1000
+                --load True \
+                --n_samples 1000
 
 
 Here the --load arg indicates to use a pretrained model, 
