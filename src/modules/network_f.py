@@ -176,13 +176,16 @@ def get_children(model: torch.nn.Module):
 # from start if n > 0
 # from end if n < 0
 # non randomized if n==0
-def randomize_layers(model, n_layers):
+def randomize_layers(model, n_layers, rand_type):
+
+  if rand_type == "upto":
+    rand_layers = range(n_layers) if n_layers >= 0 else range(-1,n_layers-1,-1)
+  elif rand_type == "specific":
+    rand_layers = n_layers
+
   rand_model = deepcopy(model)
   layers = get_children(rand_model)
-  if n_layers > 0:
-    for i in range(n_layers):
-      layers[i].reset_parameters()
-  elif n_layers < 0:
-    for i in range(-1,n_layers-1,-1):
-      layers[i].reset_parameters()    
+  for i in rand_layers:
+    layers[i].reset_parameters()
+    
   return rand_model

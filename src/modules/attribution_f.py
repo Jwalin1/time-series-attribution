@@ -190,6 +190,7 @@ def gridEval(model, inputs, labels, params):
 
   percs = params["percs"]
   rand_layers = params["rand_layers"]
+  rand_type = "upto" if "rand_type" not in params else params["rand_type"]
 
 
   # compute original attribution maps for comparison with randomized
@@ -208,7 +209,7 @@ def gridEval(model, inputs, labels, params):
   accs_randModel["no_randomized_weightedAvgF1"] = no_randomized["weighted avg"]['f1-score']
   for rand_layer in tqdm(rand_layers, leave=False, desc="randomized"):
     # get model with last n layers randomized
-    rand_model = randomize_layers(model, rand_layer)
+    rand_model = randomize_layers(model, rand_layer, rand_type)
     no_replace = evaluate(rand_model, dataLoader, output_dict=True)
 
     accs_attribMethods = {}
@@ -338,11 +339,13 @@ def visEval(params, accs, savefig):
   return
 
 def visAttrib(model, inputs, labels, params):
+  rand_type = "upto" if "rand_type" not in params else params["rand_type"]
+
   for input, label in zip(inputs, labels):
     input = np.expand_dims(input, 0)
-    label = np.expand_dims(label, 0)    
+    label = np.expand_dims(label, 0)
     for rand_layer in tqdm(params["rand_layers"], leave=False, desc="randomized"):
-      rand_model = randomize_layers(model, rand_layer)
+      rand_model = randomize_layers(model, rand_layer, rand_type)
       for method in tqdm(params["methods"], leave=False, desc="methods"):
         map1 = applyMethod(method, rand_model, input)
         for approach in tqdm(params["approaches"], leave=False, desc="approaches"):
