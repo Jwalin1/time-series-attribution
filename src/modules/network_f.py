@@ -181,7 +181,7 @@ def randomize_layers(model, n_layers, rand_type):
   if rand_type == "upto":
     rand_layers = range(n_layers) if n_layers >= 0 else range(-1,n_layers-1,-1)
   elif rand_type == "specific":
-    rand_layers = n_layers
+    rand_layers = [n_layers]
 
   rand_model = deepcopy(model)
   layers = get_children(rand_model)
