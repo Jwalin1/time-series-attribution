@@ -56,7 +56,7 @@ def applyMethod(method, model, inputs):
 
 def applyMethodBatch(method, model, inputs):
   dummyLabels = [0]*len(inputs)
-  dataLoader = createLoader(inputs, dummyLabels)
+  dataLoader = createLoader(inputs, dummyLabels, batch_size=64)
 
   model.eval()
   maps = []
@@ -201,7 +201,7 @@ def gridEval(model, inputs, labels, params):
     maps_original[method] = applyMethod(method, model, inputs)
 
   accs_randModel = {}
-  dataLoader = createLoader(inputs, labels)
+  dataLoader = createLoader(inputs, labels, batch_size=500)
   # baseline accuracy
   no_randomized = evaluate(model, dataLoader, output_dict=True)
   accs_randModel["no_randomized_acc"] = no_randomized["accuracy"]
@@ -224,16 +224,21 @@ def gridEval(model, inputs, labels, params):
       torch.manual_seed(0)
 
       maps_randomized = applyMethod(method, rand_model, inputs)
-      spearmanCorrs = {}
-      pearsonCorrs = {}
+      spearmanCorrs, pearsonCorrs = {}, {}
       for method1 in maps_original:
-        if np.isfinite(maps_randomized).all() and np.isfinite(maps_original[method1]).all():
-          # compare after taking mean of channels
-          spearmanCorrs[method1] = stats.spearmanr(np.mean(maps_original[method1],axis=1).flatten(), np.mean(maps_randomized,axis=1).flatten())[0]
-          pearsonCorrs[method1] = stats.pearsonr(np.mean(maps_original[method1],axis=1).flatten(), np.mean(maps_randomized,axis=1).flatten())[0]
-          # compare after taking max of channels
-          #spearmanCorrs[method1] = stats.spearmanr(np.max(maps_original[method1],axis=1).flatten(), np.max(maps_randomized,axis=1).flatten())[0]
-          #pearsonCorrs[method1] = stats.pearsonr(np.max(maps_original[method1],axis=1).flatten(), np.max(maps_randomized,axis=1).flatten())[0]
+        spearman_corrs, pearson_corrs = [], []
+        for map_original,map_randomized in zip(maps_original[method1],maps_randomized):
+          if np.isfinite(map_randomized).all() and np.isfinite(map_original).all():
+            corr = stats.spearmanr(np.mean(map_original,axis=0), np.mean(map_randomized,axis=0))[0]
+            #corr = stats.spearmanr(np.max(map_original,axis=0), np.max(map_randomized,axis=0))[0]
+            if ~np.isnan(corr): spearman_corrs.append(corr)
+            corr = stats.pearsonr(np.mean(map_original,axis=0), np.mean(map_randomized,axis=0))[0]
+            #corr = stats.pearsonr(np.max(map_original,axis=0), np.max(map_randomized,axis=0))[0]
+            if ~np.isnan(corr): pearson_corrs.append(corr)
+        if spearman_corrs:
+          spearmanCorrs[method1] = np.mean(spearman_corrs)
+        if pearson_corrs:
+          pearsonCorrs[method1] = np.mean(pearson_corrs)
       accs_replaceApproach["spearmanCorr"] = spearmanCorrs
       accs_replaceApproach["pearsonCorr"] = pearsonCorrs
 
@@ -241,7 +246,7 @@ def gridEval(model, inputs, labels, params):
         accs = {}
         for perc in tqdm(percs, leave=False, desc="percentile"):
           replacedInputs = replace(inputs, maps_randomized, n_percentile=perc, approach=approach)
-          dataLoader1 = createLoader(replacedInputs, labels)
+          dataLoader1 = createLoader(replacedInputs, labels, batch_size=500)
           perc_dict = evaluate(rand_model, dataLoader1, output_dict=True)
           accs[str(perc)+"_acc"] = perc_dict["accuracy"]
           accs[str(perc)+"_macroAvgF1"] = perc_dict["macro avg"]['f1-score']
